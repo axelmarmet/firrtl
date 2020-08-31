@@ -21,4 +21,23 @@ package object firrtl {
   type WSubIndex = ir.SubIndex
   type WSubAccess = ir.SubAccess
   type WDefInstance = ir.DefInstance
+
+  @deprecated("Use firrtl.backends.verilog.VerilogEmitter", "1.4")
+  type VerilogEmitter = firrtl.backends.verilog.VerilogEmitter
+  @deprecated("Use firrtl.backends.verilog.VerilogEmitter", "1.4")
+  val VerilogEmitter = firrtl.backends.verilog.VerilogEmitter
+  @deprecated("Use firrtl.backends.verilog.MinimumVerilogEmitter", "1.4")
+  type MinimumVerilogEmitter = firrtl.backends.verilog.MinimumVerilogEmitter
+  @deprecated("Use firrtl.backends.verilog.SystemVerilogEmitter", "1.4")
+  type SystemVerilogEmitter = firrtl.backends.verilog.SystemVerilogEmitter
+  @deprecated("Use firrtl.backends.firrtl.FirrtlEmitter", "1.4")
+  type FirrtlEmitter = firrtl.backends.firrtl.FirrtlEmitter
+  @deprecated("Use firrtl.backends.firrtl.ChirrtlEmitter", "1.4")
+  type ChirrtlEmitter = firrtl.backends.firrtl.ChirrtlEmitter
+  @deprecated("Use firrtl.backends.firrtl.HighFirrtlEmitter", "1.4")
+  type HighFirrtlEmitter = firrtl.backends.firrtl.HighFirrtlEmitter
+  @deprecated("Use firrtl.backends.firrtl.MiddleFirrtlEmitter", "1.4")
+  type MiddleFirrtlEmitter = firrtl.backends.firrtl.MiddleFirrtlEmitter
+  @deprecated("Use firrtl.backends.firrtl.LowFirrtlEmitter", "1.4")
+  type LowFirrtlEmitter = firrtl.backends.firrtl.LowFirrtlEmitter
 }
