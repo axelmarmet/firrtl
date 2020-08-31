@@ -2,7 +2,8 @@
 
 package firrtl.stage.phases
 
-import firrtl.{AnnotationSeq, VerilogEmitter}
+import firrtl.AnnotationSeq
+import firrtl.backends.verilog.VerilogEmitter
 import firrtl.options.{Dependency, Phase, TargetDirAnnotation}
 import firrtl.stage.TransformManager.TransformDependency
 import firrtl.transforms.BlackBoxTargetDirAnno

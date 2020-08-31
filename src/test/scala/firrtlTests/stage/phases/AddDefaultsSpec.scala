@@ -2,8 +2,9 @@
 
 package firrtlTests.stage.phases
 
-import firrtl.ChirrtlEmitter
 import firrtl.annotations.Annotation
+import firrtl.backends.firrtl.ChirrtlEmitter
+import firrtl.backends.verilog.VerilogEmitter
 import firrtl.stage.phases.AddDefaults
 import firrtl.transforms.BlackBoxTargetDirAnno
 import firrtl.stage.{InfoModeAnnotation, RunFirrtlTransformAnnotation}
@@ -23,7 +24,7 @@ class AddDefaultsSpec extends AnyFlatSpec with Matchers {
       (a: Annotation) =>
         a match {
           case RunFirrtlTransformAnnotation(e: firrtl.Emitter) =>
-            Dependency.fromTransform(e) == Dependency[firrtl.VerilogEmitter]
+            Dependency.fromTransform(e) == Dependency[VerilogEmitter]
         },
       (a: Annotation) => a match { case InfoModeAnnotation(b) => b == InfoModeAnnotation().modeName }
     )

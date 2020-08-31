@@ -4,7 +4,8 @@ package firrtl.stage.transforms
 
 import firrtl.options.DependencyManagerUtils.CharSet
 import firrtl.stage.TransformManager
-import firrtl.{Transform, VerilogEmitter}
+import firrtl.Transform
+import firrtl.backends.verilog.VerilogEmitter
 
 /** A [[firrtl.stage.TransformManager TransformManager]] of
   */

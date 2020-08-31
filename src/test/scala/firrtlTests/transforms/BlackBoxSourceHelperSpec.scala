@@ -2,11 +2,10 @@
 
 package firrtlTests.transforms
 
+import firrtl.{FileUtils, Transform}
 import firrtl.annotations.{CircuitName, ModuleName}
-import firrtl.transforms._
-import firrtl.{Transform, VerilogEmitter}
-import firrtl.FileUtils
 import firrtl.testutils.LowTransformSpec
+import firrtl.transforms._
 
 class BlacklBoxSourceHelperTransformSpec extends LowTransformSpec {
   def transform: Transform = new BlackBoxSourceHelper

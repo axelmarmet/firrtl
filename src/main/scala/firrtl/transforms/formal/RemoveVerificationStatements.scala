@@ -2,8 +2,9 @@
 
 package firrtl.transforms.formal
 
+import firrtl.backends.verilog.{MinimumVerilogEmitter, VerilogEmitter}
 import firrtl.ir.{Circuit, EmptyStmt, Statement, Verification}
-import firrtl.{CircuitState, DependencyAPIMigration, MinimumVerilogEmitter, Transform, VerilogEmitter}
+import firrtl.{CircuitState, DependencyAPIMigration, Transform}
 import firrtl.options.{Dependency, PreservesAll, StageUtils}
 import firrtl.stage.TransformManager.TransformDependency
 

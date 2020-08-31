@@ -2,7 +2,8 @@
 
 package firrtlTests.stage.phases
 
-import firrtl.{ChirrtlEmitter, EmitAllModulesAnnotation, Parser}
+import firrtl.backends.firrtl.ChirrtlEmitter
+import firrtl.{EmitAllModulesAnnotation, Parser}
 import firrtl.options.Phase
 import firrtl.stage.{FirrtlCircuitAnnotation, OutputFileAnnotation}
 import firrtl.stage.phases.AddImplicitOutputFile

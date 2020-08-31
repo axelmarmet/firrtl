@@ -2,9 +2,9 @@
 
 package firrtlTests.stage.phases
 
+import firrtl.backends.firrtl.ChirrtlEmitter
 import firrtl.stage._
-
-import firrtl.{AnnotationSeq, ChirrtlEmitter, EmitAllModulesAnnotation}
+import firrtl.{AnnotationSeq, EmitAllModulesAnnotation}
 import firrtl.options.{OptionsException, OutputAnnotationFileAnnotation, Phase}
 import firrtl.stage.phases.Checks
 import org.scalatest.flatspec.AnyFlatSpec

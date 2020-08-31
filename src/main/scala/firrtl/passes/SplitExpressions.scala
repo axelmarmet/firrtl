@@ -3,11 +3,11 @@
 package firrtl
 package passes
 
-import firrtl.{SystemVerilogEmitter, Transform, VerilogEmitter}
-import firrtl.ir._
-import firrtl.options.Dependency
+import firrtl.backends.verilog._
 import firrtl.Mappers._
 import firrtl.Utils.{flow, get_info, kind}
+import firrtl.ir._
+import firrtl.options.Dependency
 
 // Datastructures
 import scala.collection.mutable

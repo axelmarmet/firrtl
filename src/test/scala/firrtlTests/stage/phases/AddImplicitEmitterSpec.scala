@@ -2,8 +2,9 @@
 
 package firrtlTests.stage.phases
 
-import firrtl.{EmitAllModulesAnnotation, EmitCircuitAnnotation, HighFirrtlEmitter, VerilogCompiler}
+import firrtl.{EmitAllModulesAnnotation, EmitCircuitAnnotation, VerilogCompiler}
 import firrtl.annotations.NoTargetAnnotation
+import firrtl.backends.firrtl.HighFirrtlEmitter
 import firrtl.options.Phase
 import firrtl.stage.{CompilerAnnotation, RunFirrtlTransformAnnotation}
 import firrtl.stage.phases.AddImplicitEmitter

@@ -2,11 +2,11 @@
 
 package firrtl.stage.phases.tests
 
-import firrtl.{HighFirrtlCompiler, HighFirrtlEmitter, LowFirrtlCompiler}
+import firrtl.backends.firrtl.HighFirrtlEmitter
+import firrtl.{HighFirrtlCompiler, LowFirrtlCompiler}
 import firrtl.options.{Dependency, OptionsException}
 import firrtl.stage.{CompilerAnnotation, RunFirrtlTransformAnnotation}
 import firrtl.stage.phases.ConvertCompilerAnnotations
-
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
