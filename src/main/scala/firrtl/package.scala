@@ -40,4 +40,17 @@ package object firrtl {
   type MiddleFirrtlEmitter = firrtl.backends.firrtl.MiddleFirrtlEmitter
   @deprecated("Use firrtl.backends.firrtl.LowFirrtlEmitter", "FIRRTL 1.4")
   type LowFirrtlEmitter = firrtl.backends.firrtl.LowFirrtlEmitter
+
+  @deprecated("Use firrtl.backends.firrtl.EmittedFirrtlCircuitAnnotation", "FIRRTL 1.4")
+  type EmittedFirrtlCircuitAnnotation = firrtl.backends.firrtl.EmittedFirrtlCircuitAnnotation
+  @deprecated("Use firrtl.backends.firrtl.EmittedFirrtlCircuitAnnotation", "FIRRTL 1.4")
+  val EmittedFirrtlCircuitAnnotation = firrtl.backends.firrtl.EmittedFirrtlCircuitAnnotation
+  @deprecated("Use firrtl.backends.verilog.EmittedVerilogCircuitAnnotation", "FIRRTL 1.4")
+  type EmittedVerilogCircuitAnnotation = firrtl.backends.verilog.EmittedVerilogCircuitAnnotation
+  @deprecated("Use firrtl.backends.verilog.EmittedVerilogCircuitAnnotation", "FIRRTL 1.4")
+  val EmittedVerilogCircuitAnnotation = firrtl.backends.verilog.EmittedVerilogCircuitAnnotation
+  @deprecated("Use firrtl.backends.firrtl.EmittedFirrtlCircuit", "FIRRTL 1.4")
+  type EmittedFirrtlCircuit = firrtl.backends.firrtl.EmittedFirrtlCircuit
+  @deprecated("Use firrtl.backends.verilog.EmittedFirrtlCircuit", "FIRRTL 1.4")
+  val EmittedFirrtlCircuit = firrtl.backends.firrtl.EmittedFirrtlCircuit
 }
