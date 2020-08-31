@@ -3,13 +3,11 @@
 package firrtl
 
 import firrtl.annotations.NoTargetAnnotation
-import firrtl.stage.{FirrtlOptions, RunFirrtlTransformAnnotation}
-import firrtl.passes.PassException
-import firrtl.options.{CustomFileEmission, HasShellOptions, PhaseException, ShellOption}
-import firrtl.options.Viewer.view
 import firrtl.backends.experimental.smt.{Btor2Emitter, SMTLibEmitter}
-import firrtl.backends.firrtl.{ChirrtlEmitter, HighFirrtlEmitter, LowFirrtlEmitter, MiddleFirrtlEmitter}
-import firrtl.backends.verilog.{SystemVerilogEmitter, VerilogEmitter}
+import firrtl.options.Viewer.view
+import firrtl.options.{CustomFileEmission, HasShellOptions, PhaseException, ShellOption}
+import firrtl.passes.PassException
+import firrtl.stage.{FirrtlOptions, RunFirrtlTransformAnnotation}
 
 case class EmitterException(message: String) extends PassException(message)
 
