@@ -10,10 +10,10 @@ package object firrtl {
   implicit def annoSeqToSeq(as: AnnotationSeq): Seq[Annotation] = as.underlying
 
   /* Options as annotations compatibility items */
-  @deprecated("Use firrtl.stage.TargetDirAnnotation", "1.2")
+  @deprecated("Use firrtl.stage.TargetDirAnnotation", "FIRRTL 1.2")
   type TargetDirAnnotation = firrtl.options.TargetDirAnnotation
 
-  @deprecated("Use firrtl.stage.TargetDirAnnotation", "1.2")
+  @deprecated("Use firrtl.stage.TargetDirAnnotation", "FIRRTL 1.2")
   val TargetDirAnnotation = firrtl.options.TargetDirAnnotation
 
   type WRef = ir.Reference
@@ -22,22 +22,22 @@ package object firrtl {
   type WSubAccess = ir.SubAccess
   type WDefInstance = ir.DefInstance
 
-  @deprecated("Use firrtl.backends.verilog.VerilogEmitter", "1.4")
+  @deprecated("Use firrtl.backends.verilog.VerilogEmitter", "FIRRTL 1.4")
   type VerilogEmitter = firrtl.backends.verilog.VerilogEmitter
-  @deprecated("Use firrtl.backends.verilog.VerilogEmitter", "1.4")
+  @deprecated("Use firrtl.backends.verilog.VerilogEmitter", "FIRRTL 1.4")
   val VerilogEmitter = firrtl.backends.verilog.VerilogEmitter
-  @deprecated("Use firrtl.backends.verilog.MinimumVerilogEmitter", "1.4")
+  @deprecated("Use firrtl.backends.verilog.MinimumVerilogEmitter", "FIRRTL 1.4")
   type MinimumVerilogEmitter = firrtl.backends.verilog.MinimumVerilogEmitter
-  @deprecated("Use firrtl.backends.verilog.SystemVerilogEmitter", "1.4")
+  @deprecated("Use firrtl.backends.verilog.SystemVerilogEmitter", "FIRRTL 1.4")
   type SystemVerilogEmitter = firrtl.backends.verilog.SystemVerilogEmitter
-  @deprecated("Use firrtl.backends.firrtl.FirrtlEmitter", "1.4")
+  @deprecated("Use firrtl.backends.firrtl.FirrtlEmitter", "FIRRTL 1.4")
   type FirrtlEmitter = firrtl.backends.firrtl.FirrtlEmitter
-  @deprecated("Use firrtl.backends.firrtl.ChirrtlEmitter", "1.4")
+  @deprecated("Use firrtl.backends.firrtl.ChirrtlEmitter", "FIRRTL 1.4")
   type ChirrtlEmitter = firrtl.backends.firrtl.ChirrtlEmitter
-  @deprecated("Use firrtl.backends.firrtl.HighFirrtlEmitter", "1.4")
+  @deprecated("Use firrtl.backends.firrtl.HighFirrtlEmitter", "FIRRTL 1.4")
   type HighFirrtlEmitter = firrtl.backends.firrtl.HighFirrtlEmitter
-  @deprecated("Use firrtl.backends.firrtl.MiddleFirrtlEmitter", "1.4")
+  @deprecated("Use firrtl.backends.firrtl.MiddleFirrtlEmitter", "FIRRTL 1.4")
   type MiddleFirrtlEmitter = firrtl.backends.firrtl.MiddleFirrtlEmitter
-  @deprecated("Use firrtl.backends.firrtl.LowFirrtlEmitter", "1.4")
+  @deprecated("Use firrtl.backends.firrtl.LowFirrtlEmitter", "FIRRTL 1.4")
   type LowFirrtlEmitter = firrtl.backends.firrtl.LowFirrtlEmitter
 }
