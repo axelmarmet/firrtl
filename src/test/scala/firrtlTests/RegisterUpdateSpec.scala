@@ -3,7 +3,6 @@
 package firrtlTests
 
 import firrtl._
-import firrtl.ir._
 import firrtl.transforms.FlattenRegUpdate
 import firrtl.annotations.NoTargetAnnotation
 import firrtl.stage.transforms.Compiler
