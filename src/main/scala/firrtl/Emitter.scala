@@ -2,17 +2,19 @@
 
 package firrtl
 
+import java.io.File
+
 import firrtl.annotations.NoTargetAnnotation
 import firrtl.backends.experimental.smt.{Btor2Emitter, SMTLibEmitter}
 import firrtl.options.Viewer.view
 import firrtl.options.{CustomFileEmission, HasShellOptions, PhaseException, ShellOption}
 import firrtl.passes.PassException
-import firrtl.stage.{FirrtlOptions, RunFirrtlTransformAnnotation}
+import firrtl.stage.{FirrtlFileAnnotation, FirrtlOptions, RunFirrtlTransformAnnotation}
 
 case class EmitterException(message: String) extends PassException(message)
 
 // ***** Annotations for telling the Emitters what to emit *****
-trait EmitAnnotation extends NoTargetAnnotation {
+sealed trait EmitAnnotation extends NoTargetAnnotation {
   val emitter: Class[_ <: Emitter]
 }
 
@@ -97,7 +99,7 @@ object EmitAllModulesAnnotation extends HasShellOptions {
 }
 
 // ***** Annotations for results of emission *****
-abstract class EmittedComponent {
+sealed abstract class EmittedComponent {
   def name: String
 
   def value: String
@@ -105,9 +107,9 @@ abstract class EmittedComponent {
   def outputSuffix: String
 }
 
-abstract class EmittedCircuit extends EmittedComponent
+sealed abstract class EmittedCircuit extends EmittedComponent
 
-abstract class EmittedModule extends EmittedComponent
+sealed abstract class EmittedModule extends EmittedComponent
 
 /** Traits for Annotations containing emitted components */
 trait EmittedAnnotation[T <: EmittedComponent] extends NoTargetAnnotation with CustomFileEmission {
@@ -120,10 +122,28 @@ trait EmittedAnnotation[T <: EmittedComponent] extends NoTargetAnnotation with C
   override protected val suffix: Option[String] = Some(value.outputSuffix)
 }
 
-trait EmittedCircuitAnnotation[T <: EmittedCircuit] extends EmittedAnnotation[T] {
+sealed trait EmittedCircuitAnnotation[T <: EmittedCircuit] extends EmittedAnnotation[T] {
   override def getBytes = value.value.getBytes
 }
 
-trait EmittedModuleAnnotation[T <: EmittedModule] extends EmittedAnnotation[T] {
+sealed trait EmittedModuleAnnotation[T <: EmittedModule] extends EmittedAnnotation[T] {
   override def getBytes = value.value.getBytes
 }
+
+case class EmittedFirrtlModuleAnnotation(value: EmittedFirrtlModule)
+    extends EmittedModuleAnnotation[EmittedFirrtlModule]
+case class EmittedFirrtlCircuitAnnotation(value: EmittedFirrtlCircuit)
+    extends EmittedCircuitAnnotation[EmittedFirrtlCircuit] {
+
+  override def replacements(file: File): AnnotationSeq = Seq(FirrtlFileAnnotation(file.toString))
+}
+
+final case class EmittedFirrtlCircuit(name: String, value: String, outputSuffix: String) extends EmittedCircuit
+final case class EmittedFirrtlModule(name: String, value: String, outputSuffix: String) extends EmittedModule
+
+final case class EmittedVerilogCircuit(name: String, value: String, outputSuffix: String) extends EmittedCircuit
+final case class EmittedVerilogModule(name: String, value: String, outputSuffix: String) extends EmittedModule
+case class EmittedVerilogCircuitAnnotation(value: EmittedVerilogCircuit)
+    extends EmittedCircuitAnnotation[EmittedVerilogCircuit]
+case class EmittedVerilogModuleAnnotation(value: EmittedVerilogModule)
+    extends EmittedModuleAnnotation[EmittedVerilogModule]

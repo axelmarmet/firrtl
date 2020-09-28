@@ -10,16 +10,6 @@ import firrtl.traversals.Foreachers._
 
 import scala.collection.mutable
 
-final case class EmittedFirrtlCircuit(name: String, value: String, outputSuffix: String) extends EmittedCircuit
-final case class EmittedFirrtlModule(name: String, value: String, outputSuffix: String) extends EmittedModule
-case class EmittedFirrtlModuleAnnotation(value: EmittedFirrtlModule)
-    extends EmittedModuleAnnotation[EmittedFirrtlModule]
-case class EmittedFirrtlCircuitAnnotation(value: EmittedFirrtlCircuit)
-    extends EmittedCircuitAnnotation[EmittedFirrtlCircuit] {
-
-  override def replacements(file: File): AnnotationSeq = Seq(FirrtlFileAnnotation(file.toString))
-}
-
 sealed abstract class FirrtlEmitter(form: CircuitForm) extends Transform with Emitter {
   def inputForm = form
   def outputForm = form

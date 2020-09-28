@@ -17,13 +17,6 @@ import firrtl.transforms.FixAddingNegativeLiterals
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-final case class EmittedVerilogCircuit(name: String, value: String, outputSuffix: String) extends EmittedCircuit
-final case class EmittedVerilogModule(name: String, value: String, outputSuffix: String) extends EmittedModule
-case class EmittedVerilogCircuitAnnotation(value: EmittedVerilogCircuit)
-    extends EmittedCircuitAnnotation[EmittedVerilogCircuit]
-case class EmittedVerilogModuleAnnotation(value: EmittedVerilogModule)
-    extends EmittedModuleAnnotation[EmittedVerilogModule]
-
 object VerilogEmitter {
   private val unaryOps: Set[PrimOp] = Set(Andr, Orr, Xorr, Neg, Not)
 
