@@ -70,6 +70,10 @@ private object SMTTransitionSystemEncoder {
     }
     // the transition relation is over two states
     val transitionExpr = replaceSymbols(andReduce(transitionRelations))
+    cmds += Comment(
+"""This function evaluates to ’true’ if the states ’state’ and
+’next_state’ form a valid state transition.""""
+    )
     cmds += DefineFunction(name + "_t", List((State, stateType), (StateNext, stateType)), transitionExpr)
 
     // The init relation just asserts that all init function hold
@@ -78,12 +82,20 @@ private object SMTTransitionSystemEncoder {
       val initSignal = symbolToFunApp(state.sym, InitSuffix, State)
       SMTEqual(stateSignal, initSignal)
     }
+
+    cmds += Comment(
+"""This function must be asserted ’true’ for initial states. For
+non-initial states it must be left unconstrained.""")
     defineConjunction(initRelations, "_i")
 
     // assertions and assumptions
     val assertions = sys.signals.filter(a => sys.asserts.contains(a.name)).map(a => replaceSymbols(a.toSymbol))
+    cmds += Comment(
+"""This function evaluates to ’true’ if all assertions hold in the state.""")
     defineConjunction(assertions, "_a")
     val assumptions = sys.signals.filter(a => sys.assumes.contains(a.name)).map(a => replaceSymbols(a.toSymbol))
+    cmds += Comment(
+"""This function evaluates to ’true’ if all assumptions hold in the state.""")
     defineConjunction(assumptions, "_u")
 
     cmds
