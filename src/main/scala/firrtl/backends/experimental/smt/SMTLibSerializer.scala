@@ -5,6 +5,16 @@ package firrtl.backends.experimental.smt
 
 import scala.util.matching.Regex
 
+//horrible hack but quick
+case class IndentLevel(var i : Int){
+  def getTabs = "\t" * i;
+  def increment = i += 1
+  def decrement = i -= 1
+}
+object IndentLevel {
+  implicit val defaultIndent = IndentLevel(0)
+}
+
 /** Converts STM Expressions to a SMTLib compatible string representation.
   *  See http://smtlib.cs.uiowa.edu/
   *  Assumes well typed expression, so it is advisable to run the TypeChecker
@@ -12,6 +22,7 @@ import scala.util.matching.Regex
   *  Automatically converts 1-bit vectors to bool.
   */
 private object SMTLibSerializer {
+  
   def setLogic(hasMem: Boolean) = "(set-logic QF_" + (if (hasMem) "A" else "") + "UFBV)"
 
   def serialize(e: SMTExpr): String = e match {
@@ -24,59 +35,63 @@ private object SMTLibSerializer {
     case a: ArrayExpr => serializeArrayType(a.indexWidth, a.dataWidth)
   }
 
-  private def serialize(e: BVExpr): String = e match {
-    case BVLiteral(value, width) =>
-      val mask = (BigInt(1) << width) - 1
-      val twosComplement = if (value < 0) { ((~(-value)) & mask) + 1 }
-      else value
-      if (width == 1) {
-        if (twosComplement == 1) "true" else "false"
-      } else {
-        s"(_ bv$twosComplement $width)"
-      }
-    case BVSymbol(name, _)                            => escapeIdentifier(name)
-    case BVExtend(e, 0, _)                            => serialize(e)
-    case BVExtend(BVLiteral(value, width), by, false) => serialize(BVLiteral(value, width + by))
-    case BVExtend(e, by, signed) =>
-      val foo = if (signed) "sign_extend" else "zero_extend"
-      s"((_ $foo $by) ${asBitVector(e)})"
-    case BVSlice(e, hi, lo) =>
-      if (lo == 0 && hi == e.width - 1) { serialize(e) }
-      else {
-        val bits = s"((_ extract $hi $lo) ${asBitVector(e)})"
-        // 1-bit extracts need to be turned into a boolean
-        if (lo == hi) { toBool(bits) }
-        else { bits }
-      }
-    case BVNot(BVEqual(a, b)) if a.width == 1 => s"(distinct ${serialize(a)} ${serialize(b)})"
-    case BVNot(BVNot(e))                      => serialize(e)
-    case BVNot(e) =>
-      if (e.width == 1) { s"(not ${serialize(e)})" }
-      else { s"(bvnot ${serialize(e)})" }
-    case BVNegate(e) => s"(bvneg ${asBitVector(e)})"
-    case r: BVReduceAnd => serialize(Expander.expand(r))
-    case r: BVReduceOr  => serialize(Expander.expand(r))
-    case r: BVReduceXor => serialize(Expander.expand(r))
-    case BVImplies(BVLiteral(v, 1), b) if v == 1         => serialize(b)
-    case BVImplies(a, b)                                 => s"(=> ${serialize(a)} ${serialize(b)})"
-    case BVEqual(a, b)                                   => s"(= ${serialize(a)} ${serialize(b)})"
-    case ArrayEqual(a, b)                                => s"(= ${serialize(a)} ${serialize(b)})"
-    case BVComparison(Compare.Greater, a, b, false)      => s"(bvugt ${asBitVector(a)} ${asBitVector(b)})"
-    case BVComparison(Compare.GreaterEqual, a, b, false) => s"(bvuge ${asBitVector(a)} ${asBitVector(b)})"
-    case BVComparison(Compare.Greater, a, b, true)       => s"(bvsgt ${asBitVector(a)} ${asBitVector(b)})"
-    case BVComparison(Compare.GreaterEqual, a, b, true)  => s"(bvsge ${asBitVector(a)} ${asBitVector(b)})"
-    // boolean operations get a special treatment for 1-bit vectors aka bools
-    case BVOp(Op.And, a, b) if a.width == 1 => s"(and ${serialize(a)} ${serialize(b)})"
-    case BVOp(Op.Or, a, b) if a.width == 1  => s"(or ${serialize(a)} ${serialize(b)})"
-    case BVOp(Op.Xor, a, b) if a.width == 1 => s"(xor ${serialize(a)} ${serialize(b)})"
-    case BVOp(op, a, b) if a.width == 1     => toBool(s"(${serialize(op)} ${asBitVector(a)} ${asBitVector(b)})")
-    case BVOp(op, a, b)                     => s"(${serialize(op)} ${serialize(a)} ${serialize(b)})"
-    case BVConcat(a, b)                     => s"(concat ${asBitVector(a)} ${asBitVector(b)})"
-    case ArrayRead(array, index)            => s"(select ${serialize(array)} ${asBitVector(index)})"
-    case BVIte(cond, tru, fals)             => s"(ite ${serialize(cond)} ${serialize(tru)} ${serialize(fals)})"
-    case BVRawExpr(serialized, _)           => serialized
+  private def serialize(e: BVExpr)(implicit indentLevel : IndentLevel): String = {
+    indentLevel.increment
+    val res = "\n" ++ indentLevel.getTabs ++ (e match {
+      case BVLiteral(value, width) =>
+        val mask = (BigInt(1) << width) - 1
+        val twosComplement = if (value < 0) { ((~(-value)) & mask) + 1 }
+        else value
+        if (width == 1) {
+          if (twosComplement == 1) "true" else "false"
+        } else {
+          s"(_ bv$twosComplement $width)"
+        }
+      case BVSymbol(name, _)                            => escapeIdentifier(name)
+      case BVExtend(e, 0, _)                            => serialize(e)
+      case BVExtend(BVLiteral(value, width), by, false) => serialize(BVLiteral(value, width + by))
+      case BVExtend(e, by, signed) =>
+        val foo = if (signed) "sign_extend" else "zero_extend"
+        s"((_ $foo $by) ${asBitVector(e)})"
+      case BVSlice(e, hi, lo) =>
+        if (lo == 0 && hi == e.width - 1) { serialize(e) }
+        else {
+          val bits = s"((_ extract $hi $lo) ${asBitVector(e)})"
+          // 1-bit extracts need to be turned into a boolean
+          if (lo == hi) { toBool(bits) }
+          else { bits }
+        }
+      case BVNot(BVEqual(a, b)) if a.width == 1 => s"(distinct ${serialize(a)} ${serialize(b)})"
+      case BVNot(BVNot(e))                      => serialize(e)
+      case BVNot(e) =>
+        if (e.width == 1) { s"(not ${serialize(e)})" }
+        else { s"(bvnot ${serialize(e)})" }
+      case BVNegate(e) => s"(bvneg ${asBitVector(e)})"
+      case r: BVReduceAnd => serialize(Expander.expand(r))
+      case r: BVReduceOr  => serialize(Expander.expand(r))
+      case r: BVReduceXor => serialize(Expander.expand(r))
+      case BVImplies(BVLiteral(v, 1), b) if v == 1         => serialize(b)
+      case BVImplies(a, b)                                 => s"(=> ${serialize(a)} ${serialize(b)})"
+      case BVEqual(a, b)                                   => s"(= ${serialize(a)} ${serialize(b)})"
+      case ArrayEqual(a, b)                                => s"(= ${serialize(a)} ${serialize(b)})"
+      case BVComparison(Compare.Greater, a, b, false)      => s"(bvugt ${asBitVector(a)} ${asBitVector(b)})"
+      case BVComparison(Compare.GreaterEqual, a, b, false) => s"(bvuge ${asBitVector(a)} ${asBitVector(b)})"
+      case BVComparison(Compare.Greater, a, b, true)       => s"(bvsgt ${asBitVector(a)} ${asBitVector(b)})"
+      case BVComparison(Compare.GreaterEqual, a, b, true)  => s"(bvsge ${asBitVector(a)} ${asBitVector(b)})"
+      // boolean operations get a special treatment for 1-bit vectors aka bools
+      case BVOp(Op.And, a, b) if a.width == 1 => s"(and ${serialize(a)} ${serialize(b)})"
+      case BVOp(Op.Or, a, b) if a.width == 1  => s"(or ${serialize(a)} ${serialize(b)})"
+      case BVOp(Op.Xor, a, b) if a.width == 1 => s"(xor ${serialize(a)} ${serialize(b)})"
+      case BVOp(op, a, b) if a.width == 1     => toBool(s"(${serialize(op)} ${asBitVector(a)} ${asBitVector(b)})")
+      case BVOp(op, a, b)                     => s"(${serialize(op)} ${serialize(a)} ${serialize(b)})"
+      case BVConcat(a, b)                     => s"(concat ${asBitVector(a)} ${asBitVector(b)})"
+      case ArrayRead(array, index)            => s"(select ${serialize(array)} ${asBitVector(index)})"
+      case BVIte(cond, tru, fals)             => s"(ite ${serialize(cond)} ${serialize(tru)} ${serialize(fals)})"
+      case BVRawExpr(serialized, _)           => serialized
+    })
+    indentLevel.decrement
+    res
   }
-
   def serialize(e: ArrayExpr): String = e match {
     case ArraySymbol(name, _, _)        => escapeIdentifier(name)
     case ArrayStore(array, index, data) => s"(store ${serialize(array)} ${serialize(index)} ${serialize(data)})"
