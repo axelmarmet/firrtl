@@ -466,6 +466,9 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
   // keeps track of unused memory (data) outputs so that we can see where they are first used
   private val unusedMemOutputs = mutable.LinkedHashMap[String, Int]()
 
+  private var amountOfAssume = 0
+  private var amountOfAssert = 0
+
   private[firrtl] def onPort(p: ir.Port): Unit = {
     if (isAsyncReset(p.tpe)) {
       throw new AsyncResetException(s"Found AsyncReset ${p.name}.")
@@ -558,7 +561,14 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
       if (op == ir.Formal.Cover) {
         logger.warn(s"WARN: Cover statement was ignored: ${s.serialize}")
       } else {
-        val name = msgToName(op.toString, msg.string)
+        val name = op match {
+          case ir.Formal.Assert => 
+            amountOfAssert += 1
+            msgToName(op.toString, msg.string) + Integer.toString(amountOfAssert - 1)
+          case ir.Formal.Assume =>
+            amountOfAssume += 1
+            msgToName(op.toString, msg.string) + Integer.toString(amountOfAssume - 1)
+        }
         val predicate = onExpression(pred, name + "_predicate")
         val enabled = onExpression(en, name + "_enabled")
         val e = BVImplies(enabled, predicate)
@@ -568,6 +578,7 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
           asserts.append(name)
         } else {
           assumes.append(name)
+
         }
       }
     case s: ir.Conditionally =>
