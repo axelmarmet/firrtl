@@ -11,7 +11,7 @@ import firrtl.options.Viewer.view
 import firrtl.options.{CustomFileEmission, Dependency}
 import firrtl.stage.FirrtlOptions
 
-private[firrtl] abstract class SMTEmitter private[firrtl] ()
+abstract class SMTEmitter ()
     extends Transform
     with Emitter
     with DependencyAPIMigration {
@@ -62,7 +62,7 @@ case class EmittedSMTModelAnnotation(name: String, src: String, outputSuffix: St
   override def getBytes:         Iterable[Byte] = src.getBytes
 }
 
-private[firrtl] class Btor2Emitter extends SMTEmitter {
+class Btor2Emitter extends SMTEmitter {
   override def outputSuffix: String = ".btor2"
   override protected def serialize(sys: TransitionSystem): Annotation = {
     val btor = generatedHeader("BTOR", sys.name) + Btor2Serializer.serialize(sys).mkString("\n") + "\n"
@@ -70,7 +70,7 @@ private[firrtl] class Btor2Emitter extends SMTEmitter {
   }
 }
 
-private[firrtl] class SMTLibEmitter extends SMTEmitter {
+class SMTLibEmitter extends SMTEmitter {
   override def outputSuffix: String = ".smt2"
   override protected def serialize(sys: TransitionSystem): Annotation = {
     val hasMemory = sys.states.exists(_.sym.isInstanceOf[ArrayExpr])
