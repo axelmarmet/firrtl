@@ -108,9 +108,11 @@ object StructuralHash {
 
   // verification ops are not firrtl nodes and thus not part of the same id namespace
   private def verificationOp(op: Formal.Value): Byte = op match {
-    case Formal.Assert => 0
-    case Formal.Assume => 1
-    case Formal.Cover  => 2
+    case Formal.Assert  => 0
+    case Formal.Assume  => 1
+    case Formal.Cover   => 2
+    case Formal.Require => 3
+    case Formal.Ensure  => 4
   }
 }
 

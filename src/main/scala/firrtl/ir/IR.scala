@@ -634,6 +634,8 @@ object Formal extends Enumeration {
   val Assert = Value("assert")
   val Assume = Value("assume")
   val Cover = Value("cover")
+  val Require = Value("require")
+  val Ensure = Value("ensure")
 }
 
 case class Verification(

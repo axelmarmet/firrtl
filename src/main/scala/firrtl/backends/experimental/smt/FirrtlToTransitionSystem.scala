@@ -11,6 +11,8 @@ import firrtl.passes.PassException
 import firrtl.stage.Forms
 import firrtl.stage.TransformManager.TransformDependency
 import firrtl.transforms.PropagatePresetAnnotations
+import firrtl.transforms.formal._
+
 import firrtl.{
   ir,
   CircuitState,
@@ -55,7 +57,7 @@ object FirrtlToTransitionSystem extends Transform with DependencyAPIMigration {
   // TODO: We only really need [[Forms.MidForm]] + LowerTypes, but we also want to fail if there are CombLoops
   // TODO: We also would like to run some optimization passes, but RemoveValidIf won't allow us to model DontCare
   //       precisely and PadWidths emits ill-typed firrtl.
-  override def prerequisites: Seq[Dependency[Transform]] = Forms.LowForm
+  override def prerequisites: Seq[Dependency[Transform]] = Forms.LowForm :+ Dependency(ConvertPrePostCondition)
   override def invalidates(a: Transform): Boolean = false
   // since this pass only runs on the main module, inlining needs to happen before
   override def optionalPrerequisites: Seq[TransformDependency] = Seq(Dependency[firrtl.passes.InlineInstances])
@@ -68,30 +70,40 @@ object FirrtlToTransitionSystem extends Transform with DependencyAPIMigration {
     // run the preset pass to extract all preset registers and remove preset reset signals
     val afterPreset = presetPass.execute(state)
     val circuit = afterPreset.circuit
-    val presetRegs = afterPreset.annotations.collect {
-      case PresetRegAnnotation(target) if target.module == circuit.main => target.ref
-    }.toSet
+
+    val presetRegsMap = afterPreset.annotations
+      .filter(x => x.isInstanceOf[PresetRegAnnotation])
+      .groupBy{case PresetRegAnnotation(target) => target.name}
+      .map{case (name, annotations) => 
+        (name, 
+        annotations.map{
+          case PresetRegAnnotation(target) => target.ref
+        }.toSet)}
 
     // collect all non-random memory initialization
-    val memInit = afterPreset.annotations.collect { case a: MemoryInitAnnotation if !a.isRandomInit => a }
-      .filter(_.target.module == circuit.main)
-      .map(a => a.target.ref -> a.initValue)
-      .toMap
+    val memInitMap = afterPreset.annotations
+      .collect{ case a: MemoryInitAnnotation if !a.isRandomInit => a }
+      .groupBy(_.target.module)
+      .map{case (name, annotations) => 
+        (name,
+        annotations.map(a => a.target.ref -> a.initValue).toMap)}
 
-    // convert the main module
-    val main = circuit.modules.find(_.name == circuit.main).get
-    val sys = main match {
-      case x: ir.ExtModule =>
-        throw new ExtModuleException(
-          "External modules are not supported by the SMT backend. Use yosys if you need to convert Verilog."
-        )
-      case m: ir.Module =>
-        new ModuleToTransitionSystem().run(m, presetRegs = presetRegs, memInit = memInit)
-    }
+    val systems = circuit.modules
+      .map{
+        case x: ir.ExtModule => 
+          throw new ExtModuleException(
+            "External modules are not supported by the SMT backend. Use yosys if you need to convert Verilog."
+          )
+        case m: ir.Module =>
+          new ModuleToTransitionSystem().run(
+            m, 
+            presetRegs = presetRegsMap.getOrElse(m.name, Set[String]()),
+            memInit = memInitMap.getOrElse(m.name, Map[String, MemoryInitValue]()))
+      }
 
-    val sortedSys = TopologicalSort.run(sys)
-    val anno = TransitionSystemAnnotation(sortedSys)
-    state.copy(circuit = circuit, annotations = afterPreset.annotations :+ anno)
+    val sortedSystems = systems.map(TopologicalSort.run)
+    val annos = sortedSystems.map(TransitionSystemAnnotation)
+    state.copy(circuit = circuit, annotations = afterPreset.annotations ++ annos)
   }
 }
 

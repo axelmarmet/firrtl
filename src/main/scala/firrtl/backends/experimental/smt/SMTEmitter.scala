@@ -41,10 +41,12 @@ abstract class SMTEmitter ()
 
     logger.warn(BleedingEdgeWarning)
 
-    val sys = state.annotations.collectFirst { case TransitionSystemAnnotation(sys) => sys }.getOrElse {
+    val systems = state.annotations.collect { case TransitionSystemAnnotation(sys) => sys }
+    if(systems.isEmpty) {
       error("Could not find the transition system!")
     }
-    state.copy(annotations = state.annotations :+ serialize(sys))
+    val newAnnos = systems.map(serialize)
+    state.copy(annotations = state.annotations ++ newAnnos)
   }
 
   protected def generatedHeader(format: String, name: String): String =
