@@ -114,6 +114,12 @@ object StructuralHash {
     case Formal.Require => 3
     case Formal.Ensure  => 4
   }
+
+  // verification mtds are not firrtl nodes and thus not part of the same id namespace
+  private def verificationMtd(mtd: Methodology.Value): Byte = mtd match {
+    case Methodology.Trivial => 0
+    case Methodology.MemoryInduction  => 1
+  }
 }
 
 trait HashCode {
@@ -301,8 +307,8 @@ class StructuralHash private (h: Hasher, renameModule: String => String) {
       hash(readUnderWrite.toString)
       hash(maskGran.size); maskGran.foreach(hash)
       hash(memRef.size); memRef.foreach { case (a, b) => hash(a); hash(b) }
-    case Verification(op, _, clk, pred, en, msg) =>
-      id(36); hash(StructuralHash.verificationOp(op)); hash(clk); hash(pred); hash(en); hash(msg.string)
+    case Verification(op, _, clk, pred, en, msg, mtd) =>
+      id(36); hash(StructuralHash.verificationOp(op)); hash(clk); hash(pred); hash(en); hash(msg.string); hash(StructuralHash.verificationMtd(mtd))
     // ids 37 ... 39 are reserved for future Statement nodes
   }
 

@@ -193,7 +193,12 @@ message Firrtl {
     enum Formal {
       ASSERT = 0;
       ASSUME = 1;
-      COVER = 2;
+      COVER  = 2;
+    }
+
+    enum Methodology {
+      TRIVIAL = 0;
+      MEMORY_INDUCTION = 1;
     }
 
     message Verification {
@@ -207,6 +212,8 @@ message Firrtl {
       Expression en = 4;
       // Required.
       string msg = 5;
+      // Required.
+      Methodology mtd = 6;
     }
 
     message Skip {

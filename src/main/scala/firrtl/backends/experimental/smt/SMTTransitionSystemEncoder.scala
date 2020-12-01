@@ -98,6 +98,8 @@ non-initial states it must be left unconstrained.""")
 """This function evaluates to ’true’ if all assumptions hold in the state.""")
     defineConjunction(assumptions, "_u")
 
+    // TODO: add commands in cmds that express the method with which we solve (ex.: Induction on Memory)
+
     cmds
   }
 

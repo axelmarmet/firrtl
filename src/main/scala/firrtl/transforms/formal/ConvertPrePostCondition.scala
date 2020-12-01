@@ -168,11 +168,11 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
   )(m: DefModule): DefModule = {
     def walkStatement(s: Statement): Statement =
       s match {
-        case s @ Verification(op, info, clk, pred, en, msg) =>
+        case s @ Verification(op, info, clk, pred, en, msg, mtd) =>
           conditions(m.name) = s :: conditions.getOrElse(m.name, Nil)
           op match {
-            case Formal.Require => Verification(Formal.Assume, info, clk, pred, en, msg)
-            case Formal.Ensure  => Verification(Formal.Assert, info, clk, pred, en, msg)
+            case Formal.Require => Verification(Formal.Assume, info, clk, pred, en, msg, mtd)
+            case Formal.Ensure  => Verification(Formal.Assert, info, clk, pred, en, msg, mtd)
             case _              => s
           }
         case _ =>
@@ -195,7 +195,7 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
             val asserts: Seq[Statement] = relatedConditions
               .filter(_.op == Formal.Require)
               .map {
-                case Verification(_, info, clk, pred, en, msg) => Verification(Formal.Assert, info, clk, pred, en, msg)
+                case Verification(_, info, clk, pred, en, msg, mtd) => Verification(Formal.Assert, info, clk, pred, en, msg, mtd)
               }
               .map (extract(innerModule, _, ioMappings))
               .reduce(_ ++ _)
@@ -203,7 +203,7 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
             val assumes: Seq[Statement] = relatedConditions
               .filter(_.op == Formal.Ensure)
               .map {
-                case Verification(_, info, clk, pred, en, msg) => Verification(Formal.Assume, info, clk, pred, en, msg)
+                case Verification(_, info, clk, pred, en, msg, mtd) => Verification(Formal.Assume, info, clk, pred, en, msg, mtd)
               }
               .map (extract(innerModule, _, ioMappings))
               .reduce(_ ++ _)

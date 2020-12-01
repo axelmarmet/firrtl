@@ -6,7 +6,7 @@ package proto
 import java.io.OutputStream
 
 import FirrtlProtos._
-import Firrtl.Statement.{Formal, ReadUnderWrite}
+import Firrtl.Statement.{Formal, Methodology, ReadUnderWrite}
 import Firrtl.Expression.PrimOp.Op
 import com.google.protobuf.{CodedOutputStream, WireFormat}
 import firrtl.PrimOps._
@@ -117,6 +117,11 @@ object ToProto {
     case ir.Formal.Assert => Formal.ASSERT
     case ir.Formal.Assume => Formal.ASSUME
     case ir.Formal.Cover  => Formal.COVER
+  }
+
+  def convert(method: ir.Methodology.Value): Methodology = method match {
+    case ir.Methodology.Trivial => Methodology.TRIVIAL
+    case ir.Methodology.MemoryInduction => Methodology.MEMORY_INDUCTION
   }
 
   def convertToIntegerLiteral(value: BigInt): Firrtl.Expression.IntegerLiteral.Builder = {
@@ -299,7 +304,7 @@ object ToProto {
               .setClk(convert(clk))
               .setEn(convert(en))
             sb.setStop(stopb)
-          case ir.Verification(op, _, clk, cond, en, msg) =>
+          case ir.Verification(op, _, clk, cond, en, msg, mtd) =>
             val vb = Firrtl.Statement.Verification
               .newBuilder()
               .setOp(convert(op))
@@ -307,6 +312,7 @@ object ToProto {
               .setCond(convert(cond))
               .setEn(convert(en))
               .setMsg(msg.string)
+              .setMtd(convert(mtd))
           case ir.IsInvalid(_, expr) =>
             val ib = Firrtl.Statement.IsInvalid
               .newBuilder()

@@ -8,7 +8,7 @@ import java.io.{File, FileInputStream, InputStream}
 import collection.JavaConverters._
 import FirrtlProtos._
 import com.google.protobuf.CodedInputStream
-import Firrtl.Statement.{Formal, ReadUnderWrite}
+import Firrtl.Statement.{Formal, Methodology, ReadUnderWrite}
 
 object FromProto {
 
@@ -193,6 +193,11 @@ object FromProto {
     case Formal.COVER  => ir.Formal.Cover
   }
 
+  def convert(method: Methodology): ir.Methodology.Value = method match {
+    case Methodology.TRIVIAL => ir.Methodology.Trivial
+    case Methodology.MEMORY_INDUCTION => ir.Methodology.MemoryInduction
+  }
+
   def convert(ver: Firrtl.Statement.Verification, info: Firrtl.SourceInfo): ir.Verification =
     ir.Verification(
       convert(ver.getOp),
@@ -200,7 +205,8 @@ object FromProto {
       convert(ver.getClk),
       convert(ver.getCond),
       convert(ver.getEn),
-      ir.StringLit(ver.getMsg)
+      ir.StringLit(ver.getMsg),
+      convert(ver.getMtd)
     )
 
   def convert(mem: Firrtl.Statement.Memory, info: Firrtl.SourceInfo): ir.DefMemory = {

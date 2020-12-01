@@ -83,7 +83,8 @@ class SMTLibEmitter extends SMTEmitter {
         "; for CVC4 you probably want to include the logic\n" +
         ";" + logic
     } else { logic }
-    val smt = generatedHeader("SMT-LIBv2", sys.name) + header +
+    val models = "(set-option :produce-models true)\n"
+    val smt = generatedHeader("SMT-LIBv2", sys.name) + header + models + "\n" +
       SMTTransitionSystemEncoder.encode(sys).map(SMTLibSerializer.serialize).mkString("\n") + "\n"
     EmittedSMTModelAnnotation(sys.name, smt, outputSuffix)
   }

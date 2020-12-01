@@ -569,7 +569,7 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
           }
         }
       }
-    case s @ ir.Verification(op, info, _, pred, en, msg) =>
+    case s @ ir.Verification(op, info, _, pred, en, msg, mtd) =>
       if (op == ir.Formal.Cover) {
         logger.warn(s"WARN: Cover statement was ignored: ${s.serialize}")
       } else {
@@ -586,6 +586,9 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
         val e = BVImplies(enabled, predicate)
         infos.append(name -> info)
         connects.append(name -> e)
+
+        msgToName(op.toString, mtd.toString) + Integer.toString(amountOfAssert - 1)
+        
         if (op == ir.Formal.Assert) {
           asserts.append(name)
         } else {

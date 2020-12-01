@@ -20,7 +20,7 @@ object ConvertAsserts extends Transform with DependencyAPIMigration {
   override def invalidates(a: Transform): Boolean = false
 
   def convertAsserts(stmt: Statement): Statement = stmt match {
-    case Verification(Formal.Assert, i, clk, pred, en, msg) =>
+    case Verification(Formal.Assert, i, clk, pred, en, msg, mtd) =>
       val nPred = DoPrim(PrimOps.Not, Seq(pred), Nil, pred.tpe)
       val gatedNPred = DoPrim(PrimOps.And, Seq(nPred, en), Nil, pred.tpe)
       val stop = Stop(i, 1, clk, gatedNPred)
@@ -28,6 +28,11 @@ object ConvertAsserts extends Transform with DependencyAPIMigration {
         case StringLit("") => stop
         case _             => Block(Print(i, msg, Nil, clk, gatedNPred), stop)
       }
+
+      /*mtd match {
+        //case Methodology.MemoryInduction => Block(Print(i, mtd.toString(), Nil, clk, gatedNPred), stop)
+      }*/
+
     case s => s.mapStmt(convertAsserts)
   }
 

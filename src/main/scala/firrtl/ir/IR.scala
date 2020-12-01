@@ -638,13 +638,20 @@ object Formal extends Enumeration {
   val Ensure = Value("ensure")
 }
 
+// methodology
+object Methodology extends Enumeration {
+  val Trivial = Value("")
+  val MemoryInduction = Value("memoryInduction")
+}
+
 case class Verification(
   op:   Formal.Value,
   info: Info,
   clk:  Expression,
   pred: Expression,
   en:   Expression,
-  msg:  StringLit)
+  msg:  StringLit,
+  mtd:  Methodology.Value)
     extends Statement
     with HasInfo
     with UseSerializer {
