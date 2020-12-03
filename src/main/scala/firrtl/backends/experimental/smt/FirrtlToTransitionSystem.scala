@@ -576,7 +576,8 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
         val name = op match {
           case ir.Formal.Assert => 
             amountOfAssert += 1
-            msgToName(op.toString, msg.string) + Integer.toString(amountOfAssert - 1)
+            val method: String = if (mtd.toString() == "") "" else (mtd.toString() + "_")
+            msgToName(op.toString, msg.string) + method + Integer.toString(amountOfAssert - 1)
           case ir.Formal.Assume =>
             amountOfAssume += 1
             msgToName(op.toString, msg.string) + Integer.toString(amountOfAssume - 1)
@@ -586,8 +587,6 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
         val e = BVImplies(enabled, predicate)
         infos.append(name -> info)
         connects.append(name -> e)
-
-        msgToName(op.toString, mtd.toString) + Integer.toString(amountOfAssert - 1)
         
         if (op == ir.Formal.Assert) {
           asserts.append(name)

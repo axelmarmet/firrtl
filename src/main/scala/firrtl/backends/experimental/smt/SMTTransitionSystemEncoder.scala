@@ -35,7 +35,7 @@ private object SMTTransitionSystemEncoder {
 
     // signals are just functions of other signals, inputs and state
     def define(sym: SMTSymbol, e: SMTExpr, suffix: String = SignalSuffix): Unit = {
-      cmds += DefineFunction(sym.name + suffix, List((State, stateType)), replaceSymbols(e))
+      cmds += DefineFunction(sym.name + suffix, List((State, stateType)), e)
     }
     sys.signals.foreach { signal =>
       val kind = if (sys.outputs.contains(signal.name)) { "output" }
@@ -99,7 +99,23 @@ non-initial states it must be left unconstrained.""")
     defineConjunction(assumptions, "_u")
 
     // TODO: add commands in cmds that express the method with which we solve (ex.: Induction on Memory)
+    // For all assertions (assumptions?) check for a methodology and apply it if present.
+    // TODO: might want to move this in a separate function
+    val asserts = sys.signals.filter(a => sys.asserts.contains(a.name))
+    asserts.filter(a => a.name.contains("memoryInduction"))
+    generateMethod(asserts)
+    
+    def generateMethod(e: Iterable[Signal]): Unit = {
+      cmds += Comment(""" Induction : Initial state of memory (state after reset holds) holds assertion""")
+      cmds += Comment("""           : P(s) => p(next(s)) if s => next(s) is a valid transition """)
 
+      // base case 
+      cmds += Comment("""base case""")
+
+      // inductive case
+      cmds += Comment("""inductive case""")
+    }
+    
     cmds
   }
 
