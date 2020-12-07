@@ -5,7 +5,9 @@
 
 package firrtl.backends.experimental.smt
 
-private sealed trait SMTExpr { def children: List[SMTExpr] }
+private sealed trait SMTExpr { 
+  def children: List[SMTExpr] 
+}
 private sealed trait SMTSymbol extends SMTExpr with SMTNullaryExpr { val name: String }
 private object SMTSymbol {
   def fromExpr(name: String, e: SMTExpr): SMTSymbol = e match {
@@ -38,6 +40,13 @@ private sealed trait BVUnaryExpr extends BVExpr {
   def e: BVExpr
   override def children: List[BVExpr] = List(e)
 }
+
+private case class BVIn(e: BVExpr, delay: Int) extends BVUnaryExpr {
+  assert(delay > 0, "A measurement delay must be positive!")
+  override def width: Int = e.width
+  override def toString(): String = s"in($e, $delay)"
+}
+
 private case class BVExtend(e: BVExpr, by: Int, signed: Boolean) extends BVUnaryExpr {
   assert(by >= 0, "Extension must be non-negative!")
   override val width: Int = e.width + by
@@ -197,7 +206,7 @@ private object SMTExpr {
 }
 
 // Raw SMTLib encoded expressions as an escape hatch used in the [[SMTTransitionSystemEncoder]]
-private case class BVRawExpr(serialized: String, width: Int) extends BVExpr with SMTNullaryExpr
-private case class ArrayRawExpr(serialized: String, indexWidth: Int, dataWidth: Int)
+private case class BVRawExpr(serialized: String, width: Int, initSymbol: BVSymbol) extends BVExpr with SMTNullaryExpr
+private case class ArrayRawExpr(serialized: String, indexWidth: Int, dataWidth: Int, initSymbol: ArraySymbol)
     extends ArrayExpr
     with SMTNullaryExpr

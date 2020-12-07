@@ -6,8 +6,8 @@ package firrtl.backends.experimental.smt
 import scala.util.matching.Regex
 
 //horrible hack but quick
-case class IndentLevel(var i : Int){
-  def getTabs = "\t" * i;
+case class IndentLevel(var i: Int) {
+  def getTabs   = "\t" * i;
   def increment = i += 1
   def decrement = i -= 1
 }
@@ -16,13 +16,13 @@ object IndentLevel {
 }
 
 /** Converts STM Expressions to a SMTLib compatible string representation.
-  *  See http://smtlib.cs.uiowa.edu/
-  *  Assumes well typed expression, so it is advisable to run the TypeChecker
-  *  before serializing!
-  *  Automatically converts 1-bit vectors to bool.
-  */
+ *  See http://smtlib.cs.uiowa.edu/
+ *  Assumes well typed expression, so it is advisable to run the TypeChecker
+ *  before serializing!
+ *  Automatically converts 1-bit vectors to bool.
+ */
 private object SMTLibSerializer {
-  
+
   def setLogic(hasMem: Boolean) = "(set-logic QF_" + (if (hasMem) "A" else "") + "UFBV)"
 
   def serialize(e: SMTExpr): String = e match {
@@ -35,13 +35,14 @@ private object SMTLibSerializer {
     case a: ArrayExpr => serializeArrayType(a.indexWidth, a.dataWidth)
   }
 
-  private def serialize(e: BVExpr)(implicit indentLevel : IndentLevel): String = {
+  private def serialize(e: BVExpr)(implicit indentLevel: IndentLevel): String = {
     indentLevel.increment
     val res = "\n" ++ indentLevel.getTabs ++ (e match {
       case BVLiteral(value, width) =>
         val mask = (BigInt(1) << width) - 1
-        val twosComplement = if (value < 0) { ((~(-value)) & mask) + 1 }
-        else value
+        val twosComplement = if (value < 0) {
+          ((~(-value)) & mask) + 1
+        } else value
         if (width == 1) {
           if (twosComplement == 1) "true" else "false"
         } else {
@@ -54,22 +55,29 @@ private object SMTLibSerializer {
         val foo = if (signed) "sign_extend" else "zero_extend"
         s"((_ $foo $by) ${asBitVector(e)})"
       case BVSlice(e, hi, lo) =>
-        if (lo == 0 && hi == e.width - 1) { serialize(e) }
-        else {
+        if (lo == 0 && hi == e.width - 1) {
+          serialize(e)
+        } else {
           val bits = s"((_ extract $hi $lo) ${asBitVector(e)})"
           // 1-bit extracts need to be turned into a boolean
-          if (lo == hi) { toBool(bits) }
-          else { bits }
+          if (lo == hi) {
+            toBool(bits)
+          } else {
+            bits
+          }
         }
       case BVNot(BVEqual(a, b)) if a.width == 1 => s"(distinct ${serialize(a)} ${serialize(b)})"
       case BVNot(BVNot(e))                      => serialize(e)
       case BVNot(e) =>
-        if (e.width == 1) { s"(not ${serialize(e)})" }
-        else { s"(bvnot ${serialize(e)})" }
-      case BVNegate(e) => s"(bvneg ${asBitVector(e)})"
-      case r: BVReduceAnd => serialize(Expander.expand(r))
-      case r: BVReduceOr  => serialize(Expander.expand(r))
-      case r: BVReduceXor => serialize(Expander.expand(r))
+        if (e.width == 1) {
+          s"(not ${serialize(e)})"
+        } else {
+          s"(bvnot ${serialize(e)})"
+        }
+      case BVNegate(e)                                     => s"(bvneg ${asBitVector(e)})"
+      case r: BVReduceAnd                                  => serialize(Expander.expand(r))
+      case r: BVReduceOr                                   => serialize(Expander.expand(r))
+      case r: BVReduceXor                                  => serialize(Expander.expand(r))
       case BVImplies(BVLiteral(v, 1), b) if v == 1         => serialize(b)
       case BVImplies(a, b)                                 => s"(=> ${serialize(a)} ${serialize(b)})"
       case BVEqual(a, b)                                   => s"(= ${serialize(a)} ${serialize(b)})"
@@ -87,17 +95,19 @@ private object SMTLibSerializer {
       case BVConcat(a, b)                     => s"(concat ${asBitVector(a)} ${asBitVector(b)})"
       case ArrayRead(array, index)            => s"(select ${serialize(array)} ${asBitVector(index)})"
       case BVIte(cond, tru, fals)             => s"(ite ${serialize(cond)} ${serialize(tru)} ${serialize(fals)})"
-      case BVRawExpr(serialized, _)           => serialized
+      case BVRawExpr(serialized, _, _)        => serialized
+      case BVIn(e, delay) =>
+        serialize(e) + s"; measure delay missing $delay\n"
     })
     indentLevel.decrement
     res
   }
   def serialize(e: ArrayExpr): String = e match {
-    case ArraySymbol(name, _, _)        => escapeIdentifier(name)
-    case ArrayStore(array, index, data) => s"(store ${serialize(array)} ${serialize(index)} ${serialize(data)})"
-    case ArrayIte(cond, tru, fals)      => s"(ite ${serialize(cond)} ${serialize(tru)} ${serialize(fals)})"
-    case c @ ArrayConstant(e, _)        => s"((as const ${serializeArrayType(c.indexWidth, c.dataWidth)}) ${serialize(e)})"
-    case ArrayRawExpr(serialized, _, _) => serialized
+    case ArraySymbol(name, _, _)           => escapeIdentifier(name)
+    case ArrayStore(array, index, data)    => s"(store ${serialize(array)} ${serialize(index)} ${serialize(data)})"
+    case ArrayIte(cond, tru, fals)         => s"(ite ${serialize(cond)} ${serialize(tru)} ${serialize(fals)})"
+    case c @ ArrayConstant(e, _)           => s"((as const ${serializeArrayType(c.indexWidth, c.dataWidth)}) ${serialize(e)})"
+    case ArrayRawExpr(serialized, _, _, _) => serialized
   }
 
   def serialize(c: SMTCommand): String = c match {
@@ -123,13 +133,19 @@ private object SMTLibSerializer {
     case GetValue(args) =>
       val aa = args.map(a => s"(${escapeIdentifier(a._1)} ${a._2})").mkString(" ")
       s"(get-value ($aa))"
+    case DeclareState(name, tpe) => s"(declare-fun $name () $tpe)"
+    case Assert(e)               => s"(assert ${serialize(e)})"
+    case CheckSat                => "(check-sat)"
   }
 
   private def serializeArrayType(indexWidth: Int, dataWidth: Int): String =
     s"(Array ${serializeBitVectorType(indexWidth)} ${serializeBitVectorType(dataWidth)})"
   private def serializeBitVectorType(width: Int): String =
-    if (width == 1) { "Bool" }
-    else { assert(width > 1); s"(_ BitVec $width)" }
+    if (width == 1) {
+      "Bool"
+    } else {
+      assert(width > 1); s"(_ BitVec $width)"
+    }
 
   private def serialize(op: Op.Value): String = op match {
     case Op.And                  => "bvand"
@@ -151,10 +167,13 @@ private object SMTLibSerializer {
   private def toBool(e: String): String = s"(= $e (_ bv1 1))"
 
   private val bvZero = "(_ bv0 1)"
-  private val bvOne = "(_ bv1 1)"
+  private val bvOne  = "(_ bv1 1)"
   private def asBitVector(e: BVExpr): String =
-    if (e.width > 1) { serialize(e) }
-    else { s"(ite ${serialize(e)} $bvOne $bvZero)" }
+    if (e.width > 1) {
+      serialize(e)
+    } else {
+      s"(ite ${serialize(e)} $bvOne $bvZero)"
+    }
 
   // See <simple_symbol> definition in the Concrete Syntax Appendix of the SMTLib Spec
   private val simple: Regex = raw"[a-zA-Z\+-/\*\=%\?!\.\$$_~&\^<>@][a-zA-Z0-9\+-/\*\=%\?!\.\$$_~&\^<>@]*".r
@@ -166,24 +185,24 @@ private object SMTLibSerializer {
 
 /** Expands expressions that are not natively supported by SMTLib */
 private object Expander {
-  def expand(r: BVReduceAnd): BVExpr = {
-    if (r.e.width == 1) { r.e }
-    else {
+  def expand(r: BVReduceAnd): BVExpr =
+    if (r.e.width == 1) {
+      r.e
+    } else {
       val allOnes = (BigInt(1) << r.e.width) - 1
       BVEqual(r.e, BVLiteral(allOnes, r.e.width))
     }
-  }
-  def expand(r: BVReduceOr): BVExpr = {
-    if (r.e.width == 1) { r.e }
-    else {
+  def expand(r: BVReduceOr): BVExpr =
+    if (r.e.width == 1) {
+      r.e
+    } else {
       BVNot(BVEqual(r.e, BVLiteral(0, r.e.width)))
     }
-  }
-  def expand(r: BVReduceXor): BVExpr = {
-    if (r.e.width == 1) { r.e }
-    else {
+  def expand(r: BVReduceXor): BVExpr =
+    if (r.e.width == 1) {
+      r.e
+    } else {
       val bits = (0 until r.e.width).map(ii => BVSlice(r.e, ii, ii))
       bits.reduce[BVExpr]((a, b) => BVOp(Op.Xor, a, b))
     }
-  }
 }

@@ -27,7 +27,8 @@ private object SMTExprVisitor {
     case old @ BVNegate(e)             => val n = map(e, bv, ar); bv(if (n.eq(e)) old else BVNegate(n))
     case old @ BVReduceAnd(e)          => val n = map(e, bv, ar); bv(if (n.eq(e)) old else BVReduceAnd(n))
     case old @ BVReduceOr(e)           => val n = map(e, bv, ar); bv(if (n.eq(e)) old else BVReduceOr(n))
-    case old @ BVReduceXor(e) => val n = map(e, bv, ar); bv(if (n.eq(e)) old else BVReduceXor(n))
+    case old @ BVReduceXor(e)          => val n = map(e, bv, ar); bv(if (n.eq(e)) old else BVReduceXor(n))
+    case old @ BVIn(e, delay)          => val n = map(e, bv, ar); bv(if (n.eq(e)) old else BVIn(n, delay))
     // binary
     case old @ BVImplies(a, b) =>
       val (nA, nB) = (map(a, bv, ar), map(b, bv, ar))

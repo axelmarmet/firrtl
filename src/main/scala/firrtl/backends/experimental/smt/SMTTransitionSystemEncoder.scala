@@ -17,6 +17,42 @@ private object SMTTransitionSystemEncoder {
   def encode(sys: TransitionSystem): Iterable[SMTCommand] = {
     val cmds = mutable.ArrayBuffer[SMTCommand]()
     val name = sys.name
+    val measurementDelaysSymbol = mutable.Map[SMTSymbol, Int]()
+    def measurementDelay(e: SMTExpr): Int = e match {
+      case e: SMTSymbol => measurementDelaysSymbol(e)
+      case _: BVLiteral => 0
+      case e: BVRawExpr => measurementDelaysSymbol(e.initSymbol)
+      case e: ArrayRawExpr => measurementDelaysSymbol(e.initSymbol)
+      case BVIn(e, delay) => measurementDelay(e) + delay
+      case e => e.children.map(measurementDelay).max
+    }
+    // All signals are modelled with functions that need to be called with the state as argument,
+    // this replaces all Symbols with function applications to the state.
+    def replaceSymbols(e: SMTExpr): SMTExpr = e match {
+      case BVIn(expr, delay) => symbolToFunApp(expr, SignalSuffix, 
+                (delay to measurementDelay(e)).map(i => s"${State}_${i}").mkString(" "))
+      case _ => SMTExprVisitor.map(expr => symbolToFunApp(expr, SignalSuffix, 
+                (0 to measurementDelay(expr)).map(i => s"${State}_${i}").mkString(" ")))(e)
+    }
+    // {
+    //   println(s"Replacing $e")
+    //   SMTExprVisitor.map(expr => {
+    //     expr match {
+    //         case BVIn(_, delay) => 
+
+    //         case _ => 
+    //           symbolToFunApp(expr, SignalSuffix, 
+    //             (0 to measurementDelay(expr)).map(i => s"${State}_${i}").mkString(" "))
+    //     }
+    //   })(e)
+    // }
+    def symbolToFunApp(sym: SMTExpr, suffix: String, arg: String): SMTExpr = sym match {
+      case sym @ BVSymbol(name, width) => 
+        BVRawExpr(s"(${id(name + suffix)} $arg)", width, sym)
+      case sym @ ArraySymbol(name, indexWidth, dataWidth) => 
+        ArrayRawExpr(s"(${id(name + suffix)} $arg)", indexWidth, dataWidth, sym)
+      case other => other
+    }
 
     // emit header as comments
     cmds ++= sys.header.map(Comment)
@@ -29,6 +65,7 @@ private object SMTTransitionSystemEncoder {
     def declare(sym: SMTSymbol, kind: String): Unit = {
       cmds ++= toDescription(sym, kind, sys.comments.get)
       val s = SMTSymbol.fromExpr(sym.name + SignalSuffix, sym)
+      measurementDelaysSymbol += sym -> 0
       cmds += DeclareFunction(s, List(stateType))
     }
     sys.inputs.foreach(i => declare(i, "input"))
@@ -36,7 +73,11 @@ private object SMTTransitionSystemEncoder {
 
     // signals are just functions of other signals, inputs and state
     def define(sym: SMTSymbol, e: SMTExpr, suffix: String = SignalSuffix): Unit = {
-      cmds += DefineFunction(sym.name + suffix, List((State, stateType)), replaceSymbols(e))
+      val delay = measurementDelay(e)
+      val replacedE = replaceSymbols(e)
+      measurementDelaysSymbol += sym -> delay
+      val args = (0 to (delay)).toList.map(i => (s"${State}_${i}", stateType))
+      cmds += DefineFunction(sym.name + suffix, args, replacedE)
     }
     sys.signals.foreach { signal =>
       val kind = if (sys.outputs.contains(signal.name)) { "output" }
@@ -70,7 +111,7 @@ private object SMTTransitionSystemEncoder {
       SMTEqual(newState, nextOldState)
     }
     // the transition relation is over two states
-    val transitionExpr = replaceSymbols(andReduce(transitionRelations))
+    val transitionExpr = andReduce(transitionRelations)
     cmds += Comment(
 """This function evaluates to ’true’ if the states ’state’ and
 ’next_state’ form a valid state transition.""""
@@ -90,11 +131,11 @@ non-initial states it must be left unconstrained.""")
     defineConjunction(initRelations, "_i")
 
     // assertions and assumptions
-    val assertions = sys.signals.filter(a => sys.asserts.contains(a.name)).map(a => replaceSymbols(a.toSymbol))
+    val assertions = sys.signals.filter(a => sys.asserts.contains(a.name)).map(a => replaceSymbols(a.toSymbol).asInstanceOf[BVRawExpr])
     cmds += Comment(
 """This function evaluates to ’true’ if all assertions hold in the state.""")
     defineConjunction(assertions, "_a")
-    val assumptions = sys.signals.filter(a => sys.assumes.contains(a.name)).map(a => replaceSymbols(a.toSymbol))
+    val assumptions = sys.signals.filter(a => sys.assumes.contains(a.name)).map(a => replaceSymbols(a.toSymbol).asInstanceOf[BVExpr])
     cmds += Comment(
 """This function evaluates to ’true’ if all assumptions hold in the state.""")
     defineConjunction(assumptions, "_u")
@@ -111,7 +152,7 @@ non-initial states it must be left unconstrained.""")
     }
 
     def memInduction(asserts: Iterable[Signal]): Unit = asserts.foreach { s =>
-      val assert_name = (SMTExprVisitor.map(symbolToFunApp(_, "", ""))(s.e) match { case BVImplies(_, BVRawExpr(name, width)) => name }).
+      val assert_name = (SMTExprVisitor.map(symbolToFunApp(_, "", ""))(s.e) match { case BVImplies(_, BVRawExpr(name, width, BVSymbol(name, 1))) => name }).
                   replace(" ", "").replace(")", "").replace("(", "")
       val predicate = sys.signals.filter(p => p.name.contains(assert_name)).head
       val registers = getSymbols(predicate.e, List()) ++ List("io_in")
@@ -125,35 +166,35 @@ non-initial states it must be left unconstrained.""")
       val next_init = s.name + NextSuffix + InitSuffix
       cmds += Comment("""""")
       cmds += Comment("""base case""")
-      cmds += Push()
-      cmds += DeclareState(init, List(), BVRawExpr(name + "_s", 1))
-      cmds += DeclareState(next_init, List(), BVRawExpr(name + "_s", 1))
-      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", init))(BVEqual(BVSymbol("reset_f", 1), BVRawExpr("true", 1))))
-      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", init + " " + next_init))(BVEqual(BVSymbol(name + "_t", 1), BVRawExpr("true", 1))))
-      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", next_init))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVRawExpr("true", 1)))))
+      cmds += Push
+      cmds += DeclareState(init, name + "_s")
+      cmds += DeclareState(next_init, name + "_s")
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", init))(BVEqual(BVSymbol("reset_f", 1), BVLiteral(1, 1))))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", init + " " + next_init))(BVEqual(BVSymbol(name + "_t", 1), BVLiteral(1, 1))))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", next_init))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1)))))
 
-      cmds += CheckSAT()
+      cmds += CheckSAT
       val next_values = registers.filter(r => !r.contains("io_in")).map(r => (r + SignalSuffix, next_init))
       cmds += GetValue(next_values)
-      cmds += Pop()
+      cmds += Pop
 
       // inductive case
       val valid = s.name + "_valid"
       val next_valid = s.name + NextSuffix + "_valid"
       cmds += Comment("""""")
       cmds += Comment("""inductive case""")
-      cmds += Push()
-      cmds += DeclareState(valid, List(), BVRawExpr(name + "_s", 1))
-      cmds += DeclareState(next_valid, List(), BVRawExpr(name + "_s", 1))
-      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid))(BVEqual(BVSymbol(name + "_a", 1), BVRawExpr("true", 1))))
-      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid + " " + next_valid))(BVEqual(BVSymbol(name + "_t", 1), BVRawExpr("true", 1))))
-      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVRawExpr("true", 1)))))
+      cmds += Push
+      cmds += DeclareState(valid, name + "_s")
+      cmds += DeclareState(next_valid, name + "_s")
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid))(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1)))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid + " " + next_valid))(BVEqual(BVSymbol(name + "_t", 1), BVLiteral(1, 1))))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1)))))
 
-      cmds += CheckSAT()
+      cmds += CheckSAT
       val valid_values = registers.map(r => (r + SignalSuffix, valid))
       val next_valid_values = registers.filter(r => !r.contains("io_in")).map(r => (r + SignalSuffix, next_valid))
       cmds += GetValue(valid_values ++ next_valid_values)
-      cmds += Pop()
+      cmds += Pop
       cmds += Comment("""""")
     }
 
@@ -188,6 +229,19 @@ non-initial states it must be left unconstrained.""")
       case ArrayStore(array, _, _)  => getSymbols(array, acc)
     } 
     
+    for (a <- assertions) {
+      val delay = measurementDelay(a)
+      for (i <- 0 to delay) {
+        cmds += DeclareState("s_" + i, name + "_s")
+        cmds += Assert(BVNot(BVRawExpr(s"(reset_f s_${i})", 1, BVSymbol(name, 1))))
+      }
+      for (i <- 0 until delay) {
+        cmds += Assert(BVRawExpr(s"(${name}_t s_${i} s_${i + 1})", 1, BVSymbol(name, 1)))
+      }
+      val finalAssert = a.copy(serialized=a.serialized.replace(State, "s"))
+      cmds += Assert(BVNot(finalAssert))
+      cmds += CheckSat
+    }
     cmds
   }
 
@@ -208,18 +262,6 @@ non-initial states it must be left unconstrained.""")
 
   private def andReduce(e: Iterable[BVExpr]): BVExpr =
     if (e.isEmpty) BVLiteral(1, 1) else e.reduce((a, b) => BVOp(Op.And, a, b))
-
-  // All signals are modelled with functions that need to be called with the state as argument,
-  // this replaces all Symbols with function applications to the state.
-  private def replaceSymbols(e: SMTExpr): SMTExpr = {
-    SMTExprVisitor.map(symbolToFunApp(_, SignalSuffix, State))(e)
-  }
-  private def replaceSymbols(e:   BVExpr): BVExpr = replaceSymbols(e.asInstanceOf[SMTExpr]).asInstanceOf[BVExpr]
-  private def symbolToFunApp(sym: SMTExpr, suffix: String, arg: String): SMTExpr = sym match {
-    case BVSymbol(name, width)                    => BVRawExpr(s"(${id(name + suffix)} $arg)", width)
-    case ArraySymbol(name, indexWidth, dataWidth) => ArrayRawExpr(s"(${id(name + suffix)} $arg)", indexWidth, dataWidth)
-    case other                                    => other
-  }
 }
 
 /** minimal set of pseudo SMT commands needed for our encoding */
@@ -228,9 +270,9 @@ private case class Comment(msg: String) extends SMTCommand
 private case class DefineFunction(name: String, args: Seq[(String, String)], e: SMTExpr) extends SMTCommand
 private case class DeclareFunction(sym: SMTSymbol, tpes: Seq[String]) extends SMTCommand
 private case class DeclareUninterpretedSort(name: String) extends SMTCommand
-private case class Push() extends SMTCommand
-private case class Pop() extends SMTCommand
-private case class CheckSAT() extends SMTCommand
-private case class Assert(e: SMTExpr) extends SMTCommand
-private case class DeclareState(name: String, args: Seq[(String, String)], e: SMTExpr) extends SMTCommand
+private case object Push extends SMTCommand
+private case object Pop extends SMTCommand
 private case class GetValue(args: Seq[(String, String)]) extends SMTCommand
+private case class DeclareState(name: String, tpe: String) extends SMTCommand
+private case class Assert(e: SMTExpr) extends SMTCommand
+private case object CheckSat extends SMTCommand

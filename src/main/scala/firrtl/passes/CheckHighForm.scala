@@ -168,7 +168,7 @@ trait CheckHighFormLike { this: Pass =>
           correctNum(Option(1), 0)
         case AsFixedPoint | SetP =>
           correctNum(Option(1), 1)
-        case Shl | Shr | Pad | Head | Tail | IncP | DecP =>
+        case Shl | Shr | Pad | Head | Tail | IncP | DecP | In =>
           correctNum(Option(1), 1)
           nonNegativeConsts()
         case Bits =>
