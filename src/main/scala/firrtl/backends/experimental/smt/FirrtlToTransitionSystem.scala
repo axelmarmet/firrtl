@@ -592,7 +592,6 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
           asserts.append(name)
         } else {
           assumes.append(name)
-
         }
       }
     case s: ir.Conditionally =>

@@ -4,6 +4,7 @@
 package firrtl.backends.experimental.smt
 
 import scala.collection.mutable
+import java.io.PushbackInputStream
 
 /** This Transition System encoding is directly inspired by yosys' SMT backend:
   * https://github.com/YosysHQ/yosys/blob/master/backends/smt2/smt2.cc
@@ -35,7 +36,7 @@ private object SMTTransitionSystemEncoder {
 
     // signals are just functions of other signals, inputs and state
     def define(sym: SMTSymbol, e: SMTExpr, suffix: String = SignalSuffix): Unit = {
-      cmds += DefineFunction(sym.name + suffix, List((State, stateType)), e)
+      cmds += DefineFunction(sym.name + suffix, List((State, stateType)), replaceSymbols(e))
     }
     sys.signals.foreach { signal =>
       val kind = if (sys.outputs.contains(signal.name)) { "output" }
@@ -98,22 +99,60 @@ non-initial states it must be left unconstrained.""")
 """This function evaluates to ’true’ if all assumptions hold in the state.""")
     defineConjunction(assumptions, "_u")
 
-    // TODO: add commands in cmds that express the method with which we solve (ex.: Induction on Memory)
+
     // For all assertions (assumptions?) check for a methodology and apply it if present.
-    // TODO: might want to move this in a separate function
     val asserts = sys.signals.filter(a => sys.asserts.contains(a.name))
-    asserts.filter(a => a.name.contains("memoryInduction"))
     generateMethod(asserts)
-    
-    def generateMethod(e: Iterable[Signal]): Unit = {
+
+    // TODO: might want to move the following private functions in a separate file
+    def generateMethod(asserts: Iterable[Signal]): Unit = {
+      val memInductions = asserts.filter(a => a.name.contains("memoryInduction"))
+      memInduction(memInductions)
+    }
+
+    def memInduction(asserts: Iterable[Signal]): Unit = asserts.foreach { s =>
+      val assert_name = (SMTExprVisitor.map(symbolToFunApp(_, "", ""))(s.e) match { case BVImplies(_, BVRawExpr(name, width)) => name }).
+                  replace(" ", "").replace(")", "").replace("(", "")
+      val wire = sys.signals.filter(p => p.name.contains(assert_name)).head
+      // TODO: find all Symbols (i.e. wires) from wire.e
+      //cmds += Comment(wire.name)
+
+      cmds += Comment("""""")
       cmds += Comment(""" Induction : Initial state of memory (state after reset holds) holds assertion""")
       cmds += Comment("""           : P(s) => p(next(s)) if s => next(s) is a valid transition """)
 
       // base case 
+      val init = s.name + InitSuffix
+      val next_init = s.name + NextSuffix + InitSuffix
+      cmds += Comment("""""")
       cmds += Comment("""base case""")
+      cmds += Push()
+      cmds += DeclareState(init, List(), BVRawExpr(name + "_s", 1))
+      cmds += DeclareState(next_init, List(), BVRawExpr(name + "_s", 1))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", init))(BVEqual(BVSymbol("reset_f", 1), BVRawExpr("true", 1))))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", init + " " + next_init))(BVEqual(BVSymbol(name + "_t", 1), BVRawExpr("true", 1))))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", next_init))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVRawExpr("true", 1)))))
+
+      cmds += CheckSAT()
+      // TODO: make the arg list automatically from the assertion maybe?
+      cmds += GetValue(List(("reg1_f", next_init), ("reg2_f", next_init)))
+      cmds += Pop()
 
       // inductive case
+      val valid = s.name + "_valid"
+      val next_valid = s.name + NextSuffix + "_valid"
+      cmds += Comment("""""")
       cmds += Comment("""inductive case""")
+      cmds += Push()
+      cmds += DeclareState(valid, List(), BVRawExpr(name + "_s", 1))
+      cmds += DeclareState(next_valid, List(), BVRawExpr(name + "_s", 1))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid))(BVEqual(BVSymbol(name + "_a", 1), BVRawExpr("true", 1))))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid + " " + next_valid))(BVEqual(BVSymbol(name + "_t", 1), BVRawExpr("true", 1))))
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVRawExpr("true", 1)))))
+
+      cmds += CheckSAT()
+      cmds += GetValue(List(("reg1_f", valid), ("reg2_f", valid), ("io_in_f", valid), ("reg1_f", next_valid), ("reg2_f", next_valid)))
+      cmds += Pop()
     }
     
     cmds
@@ -156,3 +195,9 @@ private case class Comment(msg: String) extends SMTCommand
 private case class DefineFunction(name: String, args: Seq[(String, String)], e: SMTExpr) extends SMTCommand
 private case class DeclareFunction(sym: SMTSymbol, tpes: Seq[String]) extends SMTCommand
 private case class DeclareUninterpretedSort(name: String) extends SMTCommand
+private case class Push() extends SMTCommand
+private case class Pop() extends SMTCommand
+private case class CheckSAT() extends SMTCommand
+private case class Assert(e: SMTExpr) extends SMTCommand
+private case class DeclareState(name: String, args: Seq[(String, String)], e: SMTExpr) extends SMTCommand
+private case class GetValue(args: Seq[(String, String)]) extends SMTCommand

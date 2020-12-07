@@ -109,6 +109,20 @@ private object SMTLibSerializer {
     case DeclareFunction(sym, tpes) =>
       val aa = tpes.mkString(" ")
       s"(declare-fun ${escapeIdentifier(sym.name)} ($aa) ${serializeType(sym)})"
+    case Push() =>
+      s"(push ${"1"})"
+    case Pop() =>
+      s"(pop ${"1"})"
+    case CheckSAT() =>
+      s"(check-sat)"
+    case Assert(e) =>
+      s"(assert ${serialize(e)})"
+    case DeclareState(name, tpes, e) =>
+      val aa = tpes.mkString(" ")
+      s"(declare-fun ${escapeIdentifier(name)} ($aa) ${serialize(e)})"
+    case GetValue(args) =>
+      val aa = args.map(a => s"(${escapeIdentifier(a._1)} ${a._2})").mkString(" ")
+      s"(get-value ($aa))"
   }
 
   private def serializeArrayType(indexWidth: Int, dataWidth: Int): String =
