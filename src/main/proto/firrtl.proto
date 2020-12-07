@@ -197,8 +197,9 @@ message Firrtl {
     }
 
     enum Methodology {
-      TRIVIAL = 0;
+      NON_INSTANTIATED = 0;
       MEMORY_INDUCTION = 1;
+      COMBINATORIAL    = 2;
     }
 
     message Verification {

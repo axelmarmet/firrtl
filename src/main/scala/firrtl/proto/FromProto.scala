@@ -194,7 +194,8 @@ object FromProto {
   }
 
   def convert(method: Methodology): ir.Methodology.Value = method match {
-    case Methodology.TRIVIAL => ir.Methodology.Trivial
+    case Methodology.NON_INSTANTIATED => ir.Methodology.NonInstantiated
+    case Methodology.COMBINATORIAL => ir.Methodology.Combinatorial
     case Methodology.MEMORY_INDUCTION => ir.Methodology.MemoryInduction
   }
 

@@ -640,7 +640,8 @@ object Formal extends Enumeration {
 
 // methodology
 object Methodology extends Enumeration {
-  val Trivial = Value("")
+  val NonInstantiated = Value("nonInstantiated")
+  val Combinatorial = Value("combinatorial")
   val MemoryInduction = Value("memoryInduction")
 }
 

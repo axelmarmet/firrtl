@@ -117,8 +117,9 @@ object StructuralHash {
 
   // verification mtds are not firrtl nodes and thus not part of the same id namespace
   private def verificationMtd(mtd: Methodology.Value): Byte = mtd match {
-    case Methodology.Trivial => 0
-    case Methodology.MemoryInduction  => 1
+    case Methodology.NonInstantiated => 0
+    case Methodology.Combinatorial => 1
+    case Methodology.MemoryInduction  => 2
   }
 }
 
