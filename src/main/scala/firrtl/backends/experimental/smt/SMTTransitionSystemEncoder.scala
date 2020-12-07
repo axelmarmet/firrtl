@@ -114,9 +114,7 @@ non-initial states it must be left unconstrained.""")
       val assert_name = (SMTExprVisitor.map(symbolToFunApp(_, "", ""))(s.e) match { case BVImplies(_, BVRawExpr(name, width)) => name }).
                   replace(" ", "").replace(")", "").replace("(", "")
       val predicate = sys.signals.filter(p => p.name.contains(assert_name)).head
-      // find all Symbols (i.e. registers) from predicate.e
       val registers = getSymbols(predicate.e, List()) ++ List("io_in")
-      //registers.foreach { r => cmds += Comment(r) }
 
       cmds += Comment("""""")
       cmds += Comment(""" Induction : Initial state of memory (state after reset holds) holds assertion""")
@@ -156,9 +154,10 @@ non-initial states it must be left unconstrained.""")
       val next_valid_values = registers.filter(r => !r.contains("io_in")).map(r => (r + SignalSuffix, next_valid))
       cmds += GetValue(valid_values ++ next_valid_values)
       cmds += Pop()
+      cmds += Comment("""""")
     }
 
-    def getSymbols(e: BVExpr, acc: List[String]): List[String] = e match {
+    def getSymbols(e: SMTExpr, acc: List[String]): List[String] = e match {
       // nullary
       case BVLiteral(name, width)   => acc
       case BVSymbol(name, width)    => name :: acc
@@ -172,17 +171,22 @@ non-initial states it must be left unconstrained.""")
       case BVReduceOr(e)            => getSymbols(e, acc)
       case BVReduceXor(e)           => getSymbols(e, acc)
       // binary
-      case BVImplies(a, b)          => getSymbols(a, acc) ++ getSymbols(b, acc)
-      case BVEqual(a, b)            => getSymbols(a, acc) ++ getSymbols(b, acc)
-      //case ArrayEqual(a, b)         => getSymbols(a, acc) ++ getSymbols(b, acc)
+      case BVImplies(a, b)          => getSymbols(b, getSymbols(a, acc))
+      case BVEqual(a, b)            => getSymbols(b, getSymbols(a, acc))
+      case ArrayEqual(a, b)         => getSymbols(b, getSymbols(a, acc))
       case BVComparison(op, a, b, signed) 
-                                    => getSymbols(a, acc) ++ getSymbols(b, acc)
-      case BVOp(op, a, b)           => getSymbols(a, acc) ++ getSymbols(b, acc)
-      case BVConcat(a, b)           => getSymbols(a, acc) ++ getSymbols(b, acc)
-      //case ArrayRead(a, b)          => getSymbols(a, acc) ++ getSymbols(b, acc)
+                                    => getSymbols(b, getSymbols(a, acc))
+      case BVOp(op, a, b)           => getSymbols(b, getSymbols(a, acc))
+      case BVConcat(a, b)           => getSymbols(b, getSymbols(a, acc))
+      case ArrayRead(a, b)          => getSymbols(b, getSymbols(a, acc))
+      case ArrayConstant(e, _)      => getSymbols(e, acc)
       // ternary
-      case BVIte(a, b, c)           => getSymbols(a, acc) ++ getSymbols(b, acc) ++ getSymbols(c, acc) // TODO: check
-    }
+      case BVIte(a, b, c)           => getSymbols(c, getSymbols(b, getSymbols(a, acc)))
+      case ArrayIte(a, b, c)        => getSymbols(c, getSymbols(b, getSymbols(a, acc)))
+      case ArrayRawExpr(name, _, _) => name :: acc
+      case ArraySymbol(name, _, _)  => name :: acc
+      case ArrayStore(array, _, _)  => getSymbols(array, acc)
+    } 
     
     cmds
   }
