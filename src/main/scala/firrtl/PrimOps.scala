@@ -554,11 +554,17 @@ object PrimOps extends LazyLogging {
     override def toString = "clip"
   }
 
+  /** Only used for formal verification, set a measuring delay on any signal type * */
+  case object In extends PrimOp {
+    override def propagateType(e: DoPrim): Type = t1(e)
+    override def toString = "in"
+  }
+
   // format: off
   private[firrtl] lazy val builtinPrimOps: Seq[PrimOp] = Seq(
     Add, Sub, Mul, Div, Rem, Lt, Leq, Gt, Geq, Eq, Neq, Pad, AsUInt, AsSInt, AsInterval, AsClock,
     AsAsyncReset, Shl, Shr, Dshl, Dshr, Neg, Cvt, Not, And, Or, Xor, Andr, Orr, Xorr, Cat, Bits,
-    Head, Tail, AsFixedPoint, IncP, DecP, SetP, Wrap, Clip, Squeeze
+    Head, Tail, AsFixedPoint, IncP, DecP, SetP, Wrap, Clip, Squeeze, In
   )
   // format: on
   private lazy val strToPrimOp: Map[String, PrimOp] = {

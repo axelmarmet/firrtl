@@ -178,6 +178,9 @@ private object FirrtlExpressionSemantics {
         assert(n >= 0 && n <= width)
         assert(n < width, "While allowed by the firrtl standard, we do not support 0-bit values in this backend!")
         BVSlice(toSMT(e), width - n.toInt - 1, 0)
+      case (PrimOps.In, Seq(e), Seq(n)) => 
+        assert(n > 0, s"A measurement delay must be positive, got : $n")
+        BVIn(toSMT(e), n.toInt)
     }
   }
 
