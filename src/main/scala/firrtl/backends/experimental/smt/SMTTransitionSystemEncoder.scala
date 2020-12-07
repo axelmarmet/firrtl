@@ -230,9 +230,11 @@ non-initial states it must be left unconstrained.""")
     } 
     
     for (a <- assertions) {
+      cmds += Push
       val delay = measurementDelay(a)
       for (i <- 0 to delay) {
         cmds += DeclareState("s_" + i, name + "_s")
+        cmds += Assert(BVRawExpr(s"(${name}_u s_$i)", 1, BVSymbol(name, 1)))
         cmds += Assert(BVNot(BVRawExpr(s"(reset_f s_${i})", 1, BVSymbol(name, 1))))
       }
       for (i <- 0 until delay) {
@@ -241,6 +243,7 @@ non-initial states it must be left unconstrained.""")
       val finalAssert = a.copy(serialized=a.serialized.replace(State, "s"))
       cmds += Assert(BVNot(finalAssert))
       cmds += CheckSat
+      cmds += Pop
     }
     cmds
   }
