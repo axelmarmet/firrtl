@@ -104,7 +104,7 @@ non-initial states it must be left unconstrained.""")
     val asserts = sys.signals.filter(a => sys.asserts.contains(a.name))
     generateMethod(asserts)
 
-    // TODO: might want to move the following private functions in a separate file
+    // TODO: might want to move the following functions in a separate file
     def generateMethod(asserts: Iterable[Signal]): Unit = {
       val memInductions = asserts.filter(a => a.name.contains("memoryInduction"))
       memInduction(memInductions)
@@ -113,9 +113,10 @@ non-initial states it must be left unconstrained.""")
     def memInduction(asserts: Iterable[Signal]): Unit = asserts.foreach { s =>
       val assert_name = (SMTExprVisitor.map(symbolToFunApp(_, "", ""))(s.e) match { case BVImplies(_, BVRawExpr(name, width)) => name }).
                   replace(" ", "").replace(")", "").replace("(", "")
-      val wire = sys.signals.filter(p => p.name.contains(assert_name)).head
-      // TODO: find all Symbols (i.e. wires) from wire.e
-      //cmds += Comment(wire.name)
+      val predicate = sys.signals.filter(p => p.name.contains(assert_name)).head
+      // find all Symbols (i.e. registers) from predicate.e
+      val registers = getSymbols(predicate.e, List()) ++ List("io_in")
+      //registers.foreach { r => cmds += Comment(r) }
 
       cmds += Comment("""""")
       cmds += Comment(""" Induction : Initial state of memory (state after reset holds) holds assertion""")
@@ -134,8 +135,8 @@ non-initial states it must be left unconstrained.""")
       cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", next_init))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVRawExpr("true", 1)))))
 
       cmds += CheckSAT()
-      // TODO: make the arg list automatically from the assertion maybe?
-      cmds += GetValue(List(("reg1_f", next_init), ("reg2_f", next_init)))
+      val next_values = registers.filter(r => !r.contains("io_in")).map(r => (r + SignalSuffix, next_init))
+      cmds += GetValue(next_values)
       cmds += Pop()
 
       // inductive case
@@ -151,8 +152,36 @@ non-initial states it must be left unconstrained.""")
       cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVRawExpr("true", 1)))))
 
       cmds += CheckSAT()
-      cmds += GetValue(List(("reg1_f", valid), ("reg2_f", valid), ("io_in_f", valid), ("reg1_f", next_valid), ("reg2_f", next_valid)))
+      val valid_values = registers.map(r => (r + SignalSuffix, valid))
+      val next_valid_values = registers.filter(r => !r.contains("io_in")).map(r => (r + SignalSuffix, next_valid))
+      cmds += GetValue(valid_values ++ next_valid_values)
       cmds += Pop()
+    }
+
+    def getSymbols(e: BVExpr, acc: List[String]): List[String] = e match {
+      // nullary
+      case BVLiteral(name, width)   => acc
+      case BVSymbol(name, width)    => name :: acc
+      case BVRawExpr(name, width)   => name :: acc
+      // unary
+      case BVExtend(e, by, signed)  => getSymbols(e, acc)
+      case BVSlice(e, hi, lo)       => getSymbols(e, acc) // TODO:check
+      case BVNot(e)                 => getSymbols(e, acc)
+      case BVNegate(e)              => getSymbols(e, acc)
+      case BVReduceAnd(e)           => getSymbols(e, acc)
+      case BVReduceOr(e)            => getSymbols(e, acc)
+      case BVReduceXor(e)           => getSymbols(e, acc)
+      // binary
+      case BVImplies(a, b)          => getSymbols(a, acc) ++ getSymbols(b, acc)
+      case BVEqual(a, b)            => getSymbols(a, acc) ++ getSymbols(b, acc)
+      //case ArrayEqual(a, b)         => getSymbols(a, acc) ++ getSymbols(b, acc)
+      case BVComparison(op, a, b, signed) 
+                                    => getSymbols(a, acc) ++ getSymbols(b, acc)
+      case BVOp(op, a, b)           => getSymbols(a, acc) ++ getSymbols(b, acc)
+      case BVConcat(a, b)           => getSymbols(a, acc) ++ getSymbols(b, acc)
+      //case ArrayRead(a, b)          => getSymbols(a, acc) ++ getSymbols(b, acc)
+      // ternary
+      case BVIte(a, b, c)           => getSymbols(a, acc) ++ getSymbols(b, acc) ++ getSymbols(c, acc) // TODO: check
     }
     
     cmds
