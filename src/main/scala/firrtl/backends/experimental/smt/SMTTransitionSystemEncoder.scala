@@ -211,3 +211,4 @@ case class GetValue(args: Seq[(String, String)])                                
 case class DeclareState(name: String, tpe: String)                               extends SMTCommand
 case class Assert(e: SMTExpr)                                                    extends SMTCommand
 case object CheckSat                                                             extends SMTCommand
+case object LineBreak                                                            extends SMTCommand

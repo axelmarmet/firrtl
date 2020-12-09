@@ -8,6 +8,8 @@ object SMTTactics {
   def dispatch(sys: TransitionSystem)(s: Signal): List[SMTCommand] = 
     if (s.name.contains("memoryInduction"))
         memInduction(sys, s)
+    else if(s.name.contains("combinatorial"))
+        combinatorial(sys, s)
     else 
         List[SMTCommand]()
 
@@ -72,6 +74,29 @@ object SMTTactics {
     cmds.toList
   }
 
+
+  def combinatorial(sys: TransitionSystem, s: Signal): List[SMTCommand] = {
+      val name = sys.name
+      val cmds = mutable.ArrayBuffer[SMTCommand]()
+      val assert_name = (SMTExprVisitor.map(symbolToFunApp(_, "", ""))(s.e) match { case BVImplies(_, BVRawExpr(name, width, BVSymbol(_, 1))) => name }).
+                replace(" ", "").replace(")", "").replace("(", "")
+      val predicate = sys.signals.filter(p => p.name.contains(assert_name)).head
+      val registers = getSymbols(predicate.e, List()) ++ List("io_in")
+
+      cmds += LineBreak
+      cmds += Comment(""" Combinatorial """)
+
+      val state = s.name
+      cmds += DeclareState(state, name + "_s")
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", state))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1)))))
+      cmds += CheckSat
+      val values = registers.map(r => (r + SignalSuffix, state))
+      cmds += GetValue(values)
+      cmds += LineBreak
+      cmds.toList
+    }
+
+
   def getSymbols(e: SMTExpr, acc: List[String]): List[String] = e match {
     // nullary
     case BVLiteral(name, width)    => acc
@@ -101,4 +126,44 @@ object SMTTactics {
     case ArraySymbol(name, _, _)     => name :: acc
     case ArrayStore(array, _, _)     => getSymbols(array, acc)
   }
+
+  def loopInvariant(sys: TransitionSystem, s: Signal): List[SMTCommand] = {
+    val name = sys.name
+    val cmds = mutable.ArrayBuffer[SMTCommand]()
+    val assert_name = (SMTExprVisitor.map(symbolToFunApp(_, "", ""))(s.e) match {
+      case BVImplies(_, BVRawExpr(name, width, BVSymbol(_, 1))) => name
+    }).replace(" ", "").replace(")", "").replace("(", "")
+    val predicate = sys.signals.filter(p => p.name.contains(assert_name)).head
+    val registers = getSymbols(predicate.e, List()) ++ List("io_in")
+
+    cmds += Comment("""""")
+    cmds += Comment(""" Induction on Loop Invariant : if state S is in a loop""")
+    cmds += Comment("""           : P(s) => p(next(s)) if s => next(s) is a valid transition """)
+
+    // inductive case
+    val valid      = s.name + "_valid"
+    val next_valid = s.name + NextSuffix + "_valid"
+    cmds += Comment("""""")
+    cmds += Comment("""inductive case""")
+    cmds += Push
+    cmds += DeclareState(valid, name + "_s")
+    cmds += DeclareState(next_valid, name + "_s")
+    cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid))(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1))))
+    cmds += Assert(
+      SMTExprVisitor
+        .map(symbolToFunApp(_, "", valid + " " + next_valid))(BVEqual(BVSymbol(name + "_t", 1), BVLiteral(1, 1)))
+    )
+    cmds += Assert(
+      SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1))))
+    )
+
+    cmds += CheckSat
+    val valid_values      = registers.map(r => (r + SignalSuffix, valid))
+    val next_valid_values = registers.filter(r => !r.contains("io_in")).map(r => (r + SignalSuffix, next_valid))
+    cmds += GetValue(valid_values ++ next_valid_values)
+    cmds += Pop
+    cmds += Comment("""""")
+    cmds.toList
+  }
+
 }

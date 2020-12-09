@@ -132,6 +132,7 @@ private object SMTLibSerializer {
       s"(get-value ($aa))"
     case DeclareState(name, tpe) => 
       s"(declare-fun ${name} () $tpe)"
+    case LineBreak => "\n";
   }
 
   private def serializeArrayType(indexWidth: Int, dataWidth: Int): String =
