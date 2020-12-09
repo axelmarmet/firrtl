@@ -197,6 +197,7 @@ object FromProto {
     case Methodology.NON_INSTANTIATED => ir.Methodology.NonInstantiated
     case Methodology.COMBINATORIAL => ir.Methodology.Combinatorial
     case Methodology.MEMORY_INDUCTION => ir.Methodology.MemoryInduction
+    case Methodology.LOOP_INVARIANT => ir.Methodology.LoopInvariant
   }
 
   def convert(ver: Firrtl.Statement.Verification, info: Firrtl.SourceInfo): ir.Verification =

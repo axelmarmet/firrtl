@@ -123,6 +123,7 @@ object ToProto {
     case ir.Methodology.NonInstantiated => Methodology.NON_INSTANTIATED
     case ir.Methodology.Combinatorial => Methodology.COMBINATORIAL
     case ir.Methodology.MemoryInduction => Methodology.MEMORY_INDUCTION
+    case ir.Methodology.LoopInvariant => Methodology.LOOP_INVARIANT
   }
 
   def convertToIntegerLiteral(value: BigInt): Firrtl.Expression.IntegerLiteral.Builder = {

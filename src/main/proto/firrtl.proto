@@ -197,9 +197,10 @@ message Firrtl {
     }
 
     enum Methodology {
-      NON_INSTANTIATED = 0;
-      MEMORY_INDUCTION = 1;
-      COMBINATORIAL    = 2;
+      NON_INSTANTIATED  = 0;
+      MEMORY_INDUCTION  = 1;
+      COMBINATORIAL     = 2;
+      LOOP_INVARIANT    = 3;
     }
 
     message Verification {
