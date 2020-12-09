@@ -149,6 +149,27 @@ non-initial states it must be left unconstrained.""")
     def generateMethod(asserts: Iterable[Signal]): Unit = {
       val memInductions = asserts.filter(a => a.name.contains("memoryInduction"))
       memInduction(memInductions)
+
+      val combis = asserts.filter(a => a.name.contains("combinatorial"))
+      combinatorial(combis)
+    }
+
+    def combinatorial(asserts: Iterable[Signal]): Unit = asserts.foreach { s =>
+      val assert_name = (SMTExprVisitor.map(symbolToFunApp(_, "", ""))(s.e) match { case BVImplies(_, BVRawExpr(name, width, BVSymbol(_, 1))) => name }).
+                replace(" ", "").replace(")", "").replace("(", "")
+      val predicate = sys.signals.filter(p => p.name.contains(assert_name)).head
+      val registers = getSymbols(predicate.e, List()) ++ List("io_in")
+
+      cmds += LineBreak
+      cmds += Comment(""" Combinatorial """)
+
+      val state = s.name
+      cmds += DeclareState(state, name + "_s")
+      cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", state))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1)))))
+      cmds += CheckSat
+      val values = registers.map(r => (r + SignalSuffix, state))
+      cmds += GetValue(values)
+      cmds += LineBreak
     }
 
     def memInduction(asserts: Iterable[Signal]): Unit = asserts.foreach { s =>
@@ -157,14 +178,14 @@ non-initial states it must be left unconstrained.""")
       val predicate = sys.signals.filter(p => p.name.contains(assert_name)).head
       val registers = getSymbols(predicate.e, List()) ++ List("io_in")
 
-      cmds += Comment("""""")
+      cmds += LineBreak
       cmds += Comment(""" Induction : Initial state of memory (state after reset holds) holds assertion""")
       cmds += Comment("""           : P(s) => p(next(s)) if s => next(s) is a valid transition """)
 
       // base case 
       val init = s.name + InitSuffix
       val next_init = s.name + NextSuffix + InitSuffix
-      cmds += Comment("""""")
+      cmds += LineBreak
       cmds += Comment("""base case""")
       cmds += Push
       cmds += DeclareState(init, name + "_s")
@@ -181,7 +202,7 @@ non-initial states it must be left unconstrained.""")
       // inductive case
       val valid = s.name + "_valid"
       val next_valid = s.name + NextSuffix + "_valid"
-      cmds += Comment("""""")
+      cmds += LineBreak
       cmds += Comment("""inductive case""")
       cmds += Push
       cmds += DeclareState(valid, name + "_s")
@@ -195,7 +216,7 @@ non-initial states it must be left unconstrained.""")
       val next_valid_values = registers.filter(r => !r.contains("io_in")).map(r => (r + SignalSuffix, next_valid))
       cmds += GetValue(valid_values ++ next_valid_values)
       cmds += Pop
-      cmds += Comment("""""")
+      cmds += LineBreak
     }
 
     def getSymbols(e: SMTExpr, acc: List[String]): List[String] = e match {
@@ -212,6 +233,7 @@ non-initial states it must be left unconstrained.""")
       case BVReduceOr(e)             => getSymbols(e, acc)
       case BVReduceXor(e)            => getSymbols(e, acc)
       // binary
+      case BVIn(e, _)                => getSymbols(e, acc)
       case BVImplies(a, b)           => getSymbols(b, getSymbols(a, acc))
       case BVEqual(a, b)             => getSymbols(b, getSymbols(a, acc))
       case ArrayEqual(a, b)          => getSymbols(b, getSymbols(a, acc))
@@ -279,3 +301,4 @@ private case class GetValue(args: Seq[(String, String)]) extends SMTCommand
 private case class DeclareState(name: String, tpe: String) extends SMTCommand
 private case class Assert(e: SMTExpr) extends SMTCommand
 private case object CheckSat extends SMTCommand
+private case object LineBreak extends SMTCommand
