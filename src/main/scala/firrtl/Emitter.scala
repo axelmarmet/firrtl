@@ -586,6 +586,8 @@ class VerilogEmitter extends SeqTransform with Emitter {
         Seq(parenthesize(a0, true), "[", msb, ":", lsb, "]")
       case Tail if c0 == (bitWidth(a0.tpe) - 1) => Seq(parenthesize(a0, true), "[0]")
       case Tail                                 => Seq(parenthesize(a0, true), "[", bitWidth(a0.tpe) - c0 - 1, ":0]")
+      // we ignore delayed signal in verilog
+      case In => Seq(a0)
     }
   }
 
