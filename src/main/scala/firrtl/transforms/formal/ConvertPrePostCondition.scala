@@ -151,9 +151,9 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
     
     getAllStatements(collectedStatements)(body)
 
-    println(body)
-    println("in IO mappings, collectedStatments")
-    collectedStatements.foreach(println)
+    // println(body)
+    // println("in IO mappings, collectedStatments")
+    // collectedStatements.foreach(println)
 
     collectedStatements.collect {
       case Connect(info, SubField(Reference(`moduleToLiftName`, _, _, _), name, _, _), ref: Reference) =>
@@ -191,8 +191,8 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
 
             val innerModule = c.modules.collectFirst{case m@Module(info, name, ports, body) if name == moduleName => m}.get
             val ioMappings = getIoMappings(m.body, instanceName)
-            println(s"Iomappings for ${instanceName}")
-            ioMappings.foreach(println)
+            // println(s"Iomappings for ${instanceName}")
+            // ioMappings.foreach(println)
             val relatedConditions = conditions(moduleName)
             val asserts: Seq[Statement] = relatedConditions
               .filter(_.op == Formal.Require)
@@ -226,10 +226,10 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
     val circuit = state.circuit
         .mapModule(discoverAndReplaceConditions(map))
     val otherCircuit = liftConditionsToParentModule(map, circuit)
-    otherCircuit.modules.foreach(m => {
-      println(s"module ${m.name}")
-      m.asInstanceOf[Module].body.foreachStmt(println)
-    })
+    // otherCircuit.modules.foreach(m => {
+    //   println(s"module ${m.name}")
+    //   m.asInstanceOf[Module].body.foreachStmt(println)
+    // })
     state.copy(
       circuit = otherCircuit
     )

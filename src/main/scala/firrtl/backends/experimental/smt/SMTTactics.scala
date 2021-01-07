@@ -14,8 +14,10 @@ object SMTTactics {
       loopInvariant(sys, s)
     else if (s.name.contains("BoundedModelCheck"))
       boundedModelCheck(sys, delay, s)
-    else
+    else {
+      println(s"${s.name} has no methodology provided so it is ignored")
       List[SMTCommand]()
+    }
 
   def printRegisters(e: SMTExpr, sys: TransitionSystem, states: List[String])(cmds: mutable.ArrayBuffer[SMTCommand]) = {
     def createValuePairs(regName: String): List[(String, String)] =
@@ -117,9 +119,9 @@ object SMTTactics {
         .map(symbolToFunApp(_, "", init + " " + next_init))(BVSymbol(name + "_t", 1))
     )
     cmds += Assert(
-      SMTExprVisitor.map(symbolToFunApp(_, "", next_init))(BVNot(BVSymbol(name + "_a", 1)))
+      SMTExprVisitor.map(symbolToFunApp(_, "", next_init))(BVNot(BVSymbol(s.name + "_f", 1)))
     )
-
+    cmds += Echo(s"Checking ${s.name} on the base case")
     cmds += CheckSat
     printRegisters(s.e, sys, List(init, next_init))(cmds)
     cmds += Pop
@@ -132,15 +134,15 @@ object SMTTactics {
     cmds += Push
     cmds += DeclareState(valid, name + "_s")
     cmds += DeclareState(next_valid, name + "_s")
-    cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid))(BVSymbol(name + "_a", 1)))
+    cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid))(BVSymbol(s.name + "_f", 1)))
     cmds += Assert(
       SMTExprVisitor
         .map(symbolToFunApp(_, "", valid + " " + next_valid))(BVSymbol(name + "_t", 1))
     )
     cmds += Assert(
-      SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVSymbol(name + "_a", 1)))
+      SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVSymbol(s.name + "_f", 1)))
     )
-
+    cmds += Echo(s"Checking ${s.name} on the inductive")
     cmds += CheckSat
     printRegisters(s.e, sys, List(valid, next_valid))(cmds)
     cmds += Pop
@@ -162,6 +164,7 @@ object SMTTactics {
     cmds += Assert(
       SMTExprVisitor.map(symbolToFunApp(_, "", state))(BVNot(BVSymbol(s.name + "_f", 1)))
     )
+    cmds += Echo(s"Checking ${s.name}")
     cmds += CheckSat
     printRegisters(s.e, sys, List(state))(cmds)
     cmds += Pop
@@ -194,7 +197,7 @@ object SMTTactics {
     cmds += Assert(
       SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVSymbol(assertName, 1)))
     )
-
+    cmds += Echo(s"Checking ${s.name}")
     cmds += CheckSat
     printRegisters(s.e, sys, List(valid, next_valid))(cmds)
     // val valid_values      = registers.map(r => (r + SignalSuffix, valid))
@@ -216,6 +219,7 @@ object SMTTactics {
     assumeDependencies(s, sys, states)(cmds)
 
     cmds += Assert(BVNot(BVRawExpr(s"($assertName ${states.reduce(_ ++ " " ++ _)})", 1, BVSymbol(systemName, 1))))
+    cmds += Echo(s"Checking ${s.name}")
     cmds += CheckSat
     printRegisters(s.e, sys, states)(cmds)
     cmds += Pop

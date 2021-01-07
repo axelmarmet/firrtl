@@ -158,29 +158,6 @@ non-initial states it must be left unconstrained.""")
       .flatMap(s => SMTTactics.dispatch(sys, measurementDelay(s.e)(measurementDelaysSymbol))(s))
 
     cmds ++= assertCmds
-
-    // TODO: might want to move the following functions in a separate file
-    // def generateMethod(asserts: Iterable[Signal]): Unit = {
-    //   val memInductions = asserts.filter(a => a.name.contains("memoryInduction"))
-    //   memInduction(memInductions)
-    // }
-
-    // for (a <- assertions) {
-    //   cmds += Push
-    //   val delay = measurementDelay(a)(measurementDelaysSymbol)
-    //   for (i <- 0 to delay) {
-    //     cmds += DeclareState("s_" + i, name + "_s")
-    //     cmds += Assert(BVRawExpr(s"(${name}_u s_$i)", 1, BVSymbol(name, 1)))
-    //     cmds += Assert(BVNot(BVRawExpr(s"(reset_f s_${i})", 1, BVSymbol(name, 1))))
-    //   }
-    //   for (i <- 0 until delay) {
-    //     cmds += Assert(BVRawExpr(s"(${name}_t s_${i} s_${i + 1})", 1, BVSymbol(name, 1)))
-    //   }
-    //   val finalAssert = a.copy(serialized = a.serialized.replace(State, "s"))
-    //   cmds += Assert(BVNot(finalAssert))
-    //   cmds += CheckSat
-    //   cmds += Pop
-    // }
     cmds
   }
 
@@ -215,3 +192,4 @@ case class DeclareState(name: String, tpe: String)                              
 case class Assert(e: SMTExpr)                                                    extends SMTCommand
 case object CheckSat                                                             extends SMTCommand
 case object LineBreak                                                            extends SMTCommand
+case class Echo(msg: String)                                                     extends SMTCommand
