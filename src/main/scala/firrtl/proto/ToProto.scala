@@ -306,7 +306,7 @@ object ToProto {
               .setClk(convert(clk))
               .setEn(convert(en))
             sb.setStop(stopb)
-          case ir.Verification(op, _, clk, cond, en, msg, mtd) =>
+          case ir.Verification(op, _, clk, cond, en, msg, mtd, _ ,_) =>
             val vb = Firrtl.Statement.Verification
               .newBuilder()
               .setOp(convert(op))

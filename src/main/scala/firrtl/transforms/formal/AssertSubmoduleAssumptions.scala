@@ -36,8 +36,8 @@ class AssertSubmoduleAssumptions
   )
 
   def assertAssumption(s: Statement): Statement = s match {
-    case Verification(Formal.Assume, info, clk, cond, en, msg, mtd) =>
-      Verification(Formal.Assert, info, clk, cond, en, msg, mtd)
+    case Verification(Formal.Assume, info, clk, cond, en, msg, mtd, id, deps) =>
+      Verification(Formal.Assert, info, clk, cond, en, msg, mtd, id, deps)
     case t => t.mapStmt(assertAssumption)
   }
 

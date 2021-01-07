@@ -644,6 +644,7 @@ object Methodology extends Enumeration {
   val Combinatorial = Value("combinatorial")
   val MemoryInduction = Value("memoryInduction")
   val LoopInvariant = Value("loopInvariant")
+  val BoundedModelCheck = Value("BoundedModelCheck")
 }
 
 case class Verification(
@@ -653,7 +654,9 @@ case class Verification(
   pred: Expression,
   en:   Expression,
   msg:  StringLit,
-  mtd:  Methodology.Value)
+  mtd:  Methodology.Value,
+  id: StringLit,
+  deps: List[StringLit])
     extends Statement
     with HasInfo
     with UseSerializer {

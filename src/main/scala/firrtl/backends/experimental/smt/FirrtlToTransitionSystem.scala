@@ -39,7 +39,8 @@ private case class TransitionSystem(
   signals:  Array[Signal],
   outputs:  Set[String],
   assumes:  Set[String],
-  asserts:  Set[String],
+  assumeDeps: Map[String, List[String]],  
+  asserts:  List[String],
   fair:     Set[String],
   comments: Map[String, String] = Map(),
   header:   Array[String] = Array()) {
@@ -141,7 +142,10 @@ private class ModuleToTransitionSystem extends LazyLogging {
     val scan = new ModuleScanner(makeRandom)
     m.foreachPort(scan.onPort)
     m.foreachStmt(scan.onStatement)
-
+    //transform ids to assert name
+    val dependencies = scan.assertsDependencies.map{
+      case (name, depsIDs) => name -> depsIDs.map(scan.assertIDToName(_))
+    }
     // multi-clock support requires the StutteringClock transform to be run
     if (scan.clocks.size > 1) {
       throw new MultiClockException(s"The module ${m.name} has more than one clock: ${scan.clocks.mkString(", ")}")
@@ -149,9 +153,9 @@ private class ModuleToTransitionSystem extends LazyLogging {
 
     // turn wires and nodes into signals
     val outputs = scan.outputs.toSet
-    val constraints = scan.assumes.toSet
-    val bad = scan.asserts.toSet
-    val isSignal = (scan.wires ++ scan.nodes ++ scan.memSignals).toSet ++ outputs ++ constraints ++ bad
+    val assumes = scan.assumes.toSet
+    val asserts = scan.asserts.toList
+    val isSignal = (scan.wires ++ scan.nodes ++ scan.memSignals).toSet ++ outputs ++ assumes ++ asserts
     val signals = scan.connects.filter { case (name, _) => isSignal.contains(name) }.map {
       case (name, expr) => Signal(name, expr)
     }
@@ -198,15 +202,16 @@ private class ModuleToTransitionSystem extends LazyLogging {
     // module info to the comment header
     val header = serializeInfo(m.info).map(InfoPrefix + _).toArray
 
-    val fair = Set[String]() // as of firrtl 1.4 we do not support fairness constraints
+    val fair = Set[String]() // as of firrtl 1.4 we do not support fairness assumes
     TransitionSystem(
       m.name,
       inputs.toArray,
       states,
       signalsWithMem.toArray,
       outputs,
-      constraints,
-      bad,
+      assumes,
+      dependencies.toMap,
+      asserts,
       fair,
       comments.toMap,
       header
@@ -473,6 +478,9 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
   private[firrtl] val connects = mutable.ArrayBuffer[(String, BVExpr)]()
   private[firrtl] val asserts = mutable.ArrayBuffer[String]()
   private[firrtl] val assumes = mutable.ArrayBuffer[String]()
+  private[firrtl] val assertsDependencies = mutable.HashMap[String, List[String]]()
+  private[firrtl] val assertIDToName = mutable.HashMap[String, String]()
+  
   // maps identifiers to their info
   private[firrtl] val infos = mutable.ArrayBuffer[(String, ir.Info)]()
   // keeps track of unused memory (data) outputs so that we can see where they are first used
@@ -569,7 +577,7 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
           }
         }
       }
-    case s @ ir.Verification(op, info, _, pred, en, msg, mtd) =>
+    case s @ ir.Verification(op, info, _, pred, en, msg, mtd, id, deps) =>
       if (op == ir.Formal.Cover) {
         logger.warn(s"WARN: Cover statement was ignored: ${s.serialize}")
       } else {
@@ -590,9 +598,15 @@ private class ModuleScanner(makeRandom: (String, Int) => BVExpr) extends LazyLog
         
         if (op == ir.Formal.Assert) {
           asserts.append(name)
+          if(id != ""){
+            assertIDToName(id.toString) = name
+          }
         } else {
           assumes.append(name)
         }
+
+        assertsDependencies(name) = deps.map(_.toString())
+
       }
     case s: ir.Conditionally =>
       error(s"When conditions are not supported. Please run ExpandWhens: ${s.serialize}")
@@ -677,13 +691,28 @@ private object TopologicalSort {
     val inputsAndStates = sys.inputs.map(_.name) ++ sys.states.map(_.sym.name)
     val signalOrder = sort(sys.signals.map(s => s.name -> s.e), inputsAndStates)
     // TODO: maybe sort init expressions of states (this should not be needed most of the time)
-    signalOrder match {
-      case None => sys
+    val newSignals = signalOrder match {
+      case None => sys.signals
       case Some(order) =>
         val signalMap = sys.signals.map(s => s.name -> s).toMap
+        order.flatMap(signalMap.get).toArray
         // we flatMap over `get` in order to ignore inputs/states in the order
-        sys.copy(signals = order.flatMap(signalMap.get).toArray)
+        //sys.copy(signals = order.flatMap(signalMap.get).toArray)
     }
+    val newAsserts = sortAsserts(sys.assumeDeps).toList
+    sys.copy(signals = newSignals, asserts = newAsserts)
+  }
+
+  private def sortAsserts(asserts: Iterable[(String, List[String])]): Iterable[String] = {
+    val digraph = new MutableDiGraph[String]
+    asserts.foreach{
+      case (name, deps) =>
+        digraph.addVertex(name)
+        deps.foreach{
+          d => digraph.addPairWithEdge(name, d)
+        }
+    }
+    digraph.linearize.reverse
   }
 
   private def sort(signals: Iterable[(String, SMTExpr)], globalSignals: Iterable[String]): Option[Iterable[String]] = {

@@ -39,13 +39,13 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
     def liftStatement(statement: Statement): Statement = {
 
       def walkExpr(expr: Expression): Expression = expr.mapExpr(walkExpr) match {
-        case Reference(name, tpe, kind, flow) if kind != PortKind => Reference(s"lifted_$name", tpe, kind, flow)
+        case Reference(name, tpe, kind, flow) if kind != PortKind => Reference(s"lifted_${name}_${m.name}", tpe, kind, flow)
         case any                                                  => any
       }
 
       def walkStatement(stm: Statement): Statement = {
         def renameStatement(s: Statement): Statement = s match {
-          case DefInstance(info, name, module, tpe) => DefInstance(info, s"lifted_$name", module, tpe)
+          case DefInstance(info, name, module, tpe) => DefInstance(info, s"lifted_${name}_${m.name}", module, tpe)
           case DefMemory(
               info,
               name,
@@ -60,7 +60,7 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
               ) =>
             DefMemory(
               info,
-              s"lifted_$name",
+              s"lifted_${name}_${m.name}",
               dataType,
               depth,
               writeLatency,
@@ -70,12 +70,12 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
               readwriters,
               readUnderWrite
             )
-          case DefNode(info, name, value) => DefNode(info, s"lifted_$name", value)
+          case DefNode(info, name, value) => DefNode(info, s"lifted_${name}_${m.name}", value)
           case DefRegister(info, name, tpe, clock, reset, init) =>
-            DefRegister(info, s"lifted_$name", tpe, clock, reset, init)
-          case DefWire(info, name, tpe) => DefWire(info, s"lifted_$name", tpe)
+            DefRegister(info, s"lifted_${name}_${m.name}", tpe, clock, reset, init)
+          case DefWire(info, name, tpe) => DefWire(info, s"lifted_${name}_${m.name}", tpe)
           case WDefInstanceConnector(info, name, module, tpe, portCons) =>
-            WDefInstanceConnector(info, s"lifted_$name", module, tpe, portCons)
+            WDefInstanceConnector(info, s"lifted_${name}_${m.name}", module, tpe, portCons)
           case rest => rest
         }
         renameStatement(stm.mapStmt(walkStatement).mapExpr(walkExpr))
@@ -160,6 +160,8 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
       name -> ref
       case Connect(info, ref: Reference, SubField(Reference(`moduleToLiftName`, _, _, _), name, _, _)) =>
       name -> ref
+      case defNode@DefNode(info, _, SubField(Reference(`moduleToLiftName`, _, _, _), name, _, _)) => 
+      name -> Reference(defNode)
     }.toMap
 }
 
@@ -168,11 +170,11 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
   )(m: DefModule): DefModule = {
     def walkStatement(s: Statement): Statement =
       s match {
-        case s @ Verification(op, info, clk, pred, en, msg, mtd) =>
+        case s @ Verification(op, _, _, _, _, _, _, _, _) =>
           conditions(m.name) = s :: conditions.getOrElse(m.name, Nil)
           op match {
-            case Formal.Require => Verification(Formal.Assume, info, clk, pred, en, msg, mtd)
-            case Formal.Ensure  => Verification(Formal.Assert, info, clk, pred, en, msg, mtd)
+            case Formal.Require => s.copy(op = Formal.Assume)
+            case Formal.Ensure  => s.copy(op = Formal.Assert) 
             case _              => s
           }
         case _ =>
@@ -182,40 +184,40 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
   }
 
   def liftConditionsToParentModule(conditions: mutable.Map[String, List[Verification]], c : Circuit): Circuit = {
-    def walkStatement(m : Module)(s: Statement): Statement =
+    def foreachStmt(m : Module, liftedSubtrees : mutable.ArrayBuffer[Seq[Statement]])(s: Statement): Unit =
       s match {
         case s @ DefInstance(info, instanceName, moduleName, tpe) =>
           if (conditions.contains(moduleName)) {
 
             val innerModule = c.modules.collectFirst{case m@Module(info, name, ports, body) if name == moduleName => m}.get
             val ioMappings = getIoMappings(m.body, instanceName)
-            println("Iomappings")
+            println(s"Iomappings for ${instanceName}")
             ioMappings.foreach(println)
             val relatedConditions = conditions(moduleName)
             val asserts: Seq[Statement] = relatedConditions
               .filter(_.op == Formal.Require)
-              .map {
-                case Verification(_, info, clk, pred, en, msg, mtd) => Verification(Formal.Assert, info, clk, pred, en, msg, mtd)
-              }
+              .map (_.copy(op = Formal.Assert))
               .map (extract(innerModule, _, ioMappings))
               .reduce(_ ++ _)
               .toSeq
             val assumes: Seq[Statement] = relatedConditions
               .filter(_.op == Formal.Ensure)
-              .map {
-                case Verification(_, info, clk, pred, en, msg, mtd) => Verification(Formal.Assume, info, clk, pred, en, msg, mtd)
-              }
+              .map (_.copy(op = Formal.Assume))
               .map (extract(innerModule, _, ioMappings))
               .reduce(_ ++ _)
               .toSeq
-            Block((assumes :+ s) ++ asserts)
-          } else {
-            s
-          }
-        case _ => s.mapStmt(walkStatement(m))
+            liftedSubtrees += (assumes ++ asserts)
+          } 
+        case _ => s.foreachStmt(foreachStmt(m, liftedSubtrees))
       }
     c.mapModule{
-        case m@Module(info, name, ports, body) => m.mapStmt(walkStatement(m))
+        case m@Module(info, name, ports, body) => {
+          val liftedSubtrees = mutable.ArrayBuffer[Seq[Statement]]()
+          m.foreachStmt(foreachStmt(m, liftedSubtrees))
+          val seqenceToInsert = liftedSubtrees.foldLeft(Seq[Statement]())(_ ++ _)
+          val (declarations, connects) = body.asInstanceOf[Block].stmts.span(!_.isInstanceOf[Connect])
+          Module(info, name, ports, Block(declarations ++ seqenceToInsert ++ connects))
+        }
     }
   }
 
@@ -224,6 +226,10 @@ object ConvertPrePostCondition extends Transform with DependencyAPIMigration {
     val circuit = state.circuit
         .mapModule(discoverAndReplaceConditions(map))
     val otherCircuit = liftConditionsToParentModule(map, circuit)
+    otherCircuit.modules.foreach(m => {
+      println(s"module ${m.name}")
+      m.asInstanceOf[Module].body.foreachStmt(println)
+    })
     state.copy(
       circuit = otherCircuit
     )

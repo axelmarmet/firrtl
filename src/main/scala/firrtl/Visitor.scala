@@ -365,7 +365,9 @@ class Visitor(infoMode: InfoMode) extends AbstractParseTreeVisitor[FirrtlNode] w
               visitExp(ctx_exp(1)),
               visitExp(ctx_exp(2)),
               visitStringLit(ctx.StringLit),
-              Methodology.MemoryInduction
+              Methodology.MemoryInduction,
+              visitStringLit(ctx.StringLit),
+              List()
             )
           case "assume" =>
             Verification(
@@ -375,7 +377,9 @@ class Visitor(infoMode: InfoMode) extends AbstractParseTreeVisitor[FirrtlNode] w
               visitExp(ctx_exp(1)),
               visitExp(ctx_exp(2)),
               visitStringLit(ctx.StringLit),
-              Methodology.MemoryInduction
+              Methodology.MemoryInduction,
+              visitStringLit(ctx.StringLit),
+              List()
             )
           case "cover" =>
             Verification(
@@ -385,7 +389,9 @@ class Visitor(infoMode: InfoMode) extends AbstractParseTreeVisitor[FirrtlNode] w
               visitExp(ctx_exp(1)),
               visitExp(ctx_exp(2)),
               visitStringLit(ctx.StringLit),
-              Methodology.MemoryInduction
+              Methodology.MemoryInduction,
+              visitStringLit(ctx.StringLit),
+              List()
             )
           // end formal
           case "skip" => EmptyStmt

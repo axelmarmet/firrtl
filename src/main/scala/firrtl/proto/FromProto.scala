@@ -208,7 +208,9 @@ object FromProto {
       convert(ver.getCond),
       convert(ver.getEn),
       ir.StringLit(ver.getMsg),
-      convert(ver.getMtd)
+      convert(ver.getMtd),
+      ir.StringLit(""),
+      Nil
     )
 
   def convert(mem: Firrtl.Statement.Memory, info: Firrtl.SourceInfo): ir.DefMemory = {

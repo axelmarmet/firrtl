@@ -138,8 +138,10 @@ object Serializer {
     case Attach(info, exprs)             =>
       // exprs should never be empty since the attach statement takes *at least* two signals according to the spec
       b ++= "attach ("; s(exprs, ", "); b += ')'; s(info)
-    case Verification(op, info, clk, pred, en, msg, mtd) =>
+    case Verification(op, info, clk, pred, en, msg, mtd, id, deps) =>
       b ++= op.toString; b += '('; s(List(clk, pred, en), ", ", false); b ++= msg.escape; b ++= mtd.toString
+      b ++= id.toString;
+      b ++= deps.map(_.toString).foldLeft("")(_ ++ " " ++ _)
       b += ')'; s(info)
 
     // WIR
