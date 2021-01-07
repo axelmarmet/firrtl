@@ -111,13 +111,13 @@ object SMTTactics {
     cmds += Push
     cmds += DeclareState(init, name + "_s")
     cmds += DeclareState(next_init, name + "_s")
-    cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", init))(BVEqual(BVSymbol("reset_f", 1), BVLiteral(1, 1))))
+    cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", init))(BVSymbol("reset_f", 1)))
     cmds += Assert(
       SMTExprVisitor
-        .map(symbolToFunApp(_, "", init + " " + next_init))(BVEqual(BVSymbol(name + "_t", 1), BVLiteral(1, 1)))
+        .map(symbolToFunApp(_, "", init + " " + next_init))(BVSymbol(name + "_t", 1))
     )
     cmds += Assert(
-      SMTExprVisitor.map(symbolToFunApp(_, "", next_init))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1))))
+      SMTExprVisitor.map(symbolToFunApp(_, "", next_init))(BVNot(BVSymbol(name + "_a", 1)))
     )
 
     cmds += CheckSat
@@ -132,13 +132,13 @@ object SMTTactics {
     cmds += Push
     cmds += DeclareState(valid, name + "_s")
     cmds += DeclareState(next_valid, name + "_s")
-    cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid))(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1))))
+    cmds += Assert(SMTExprVisitor.map(symbolToFunApp(_, "", valid))(BVSymbol(name + "_a", 1)))
     cmds += Assert(
       SMTExprVisitor
-        .map(symbolToFunApp(_, "", valid + " " + next_valid))(BVEqual(BVSymbol(name + "_t", 1), BVLiteral(1, 1)))
+        .map(symbolToFunApp(_, "", valid + " " + next_valid))(BVSymbol(name + "_t", 1))
     )
     cmds += Assert(
-      SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVEqual(BVSymbol(name + "_a", 1), BVLiteral(1, 1))))
+      SMTExprVisitor.map(symbolToFunApp(_, "", next_valid))(BVNot(BVSymbol(name + "_a", 1)))
     )
 
     cmds += CheckSat
@@ -160,7 +160,7 @@ object SMTTactics {
     instantiateStates(List(state), sys)(cmds)
     assumeDependencies(s, sys, List(state))(cmds)
     cmds += Assert(
-      SMTExprVisitor.map(symbolToFunApp(_, "", state))(BVNot(BVEqual(BVSymbol(s.name + "_f", 1), BVLiteral(1, 1))))
+      SMTExprVisitor.map(symbolToFunApp(_, "", state))(BVNot(BVSymbol(s.name + "_f", 1)))
     )
     cmds += CheckSat
     printRegisters(s.e, sys, List(state))(cmds)
